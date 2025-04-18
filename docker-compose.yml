@@ -1,0 +1,11 @@
+version: '3'
+services:
+  pyspark:
+    image: jupyter/pyspark-notebook
+    ports:
+      - "8888:8888"
+      - "4040:4040"
+    volumes:
+      - C:/Users/Konstantinos Razgkel/Desktop/Projects/Thesis:/home/jovyan/work
+    mem_limit: 4g   # Limit memory to 8 GB
+    cpus: 3         # Limit CPU usage to 2 cores
