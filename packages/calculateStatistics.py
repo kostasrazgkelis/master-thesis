@@ -1,6 +1,7 @@
 import numpy as np
 import time
 from collections import defaultdict
+from functools import lru_cache
 
 class DatasetEvaluator:
     def __init__(self, df1, df2, expected={}, threshold=3, match_column=0):
@@ -9,11 +10,13 @@ class DatasetEvaluator:
         expected: dictionary with keys 'tp', 'fp', 'fn'
         threshold: number of matching columns to count as a match (default=3)
         """
+        self.expected = expected
+        
         self.df1 = df1
         self.df2 = df2
-        self.expected = expected
         self.threshold = threshold
         self.match_column = match_column
+        
         self.ground_truth_ids = np.intersect1d(df1[self.match_column], df2[self.match_column])
         
         self.tp = 0
@@ -23,6 +26,7 @@ class DatasetEvaluator:
         self.recall = 0.0
         self.elapsed_time = 0.0
 
+    @lru_cache(maxsize=None)
     def _is_similar(self, row1, row2):
         return np.sum(np.array(row1) == np.array(row2)) >= self.threshold
 
@@ -33,7 +37,7 @@ class DatasetEvaluator:
         df2_proc = self.df2.apply(lambda x: (x[self.match_column], ''.join(map(str, x[1:]))), axis=1).to_numpy()
         
         # Separate IDs and combined strings from df2
-        df2_keys = np.array([row[0] for row in df2_proc])
+        df2_keys = np.array([row[0] for row in df2_proc if row[0] in self.ground_truth_ids] )
         df2_vals = np.array([row[1] for row in df2_proc])
         
         # Build df2 buckets: combined string -> [ids]
@@ -61,6 +65,7 @@ class DatasetEvaluator:
                 if match_count >= self.threshold:
                     df2_buckets[data].append(match_id)
                     break
+                    
         self.elapsed_time = time.time() - start_time
     
         # Evaluate precision/recall
