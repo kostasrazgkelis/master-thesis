@@ -2,9 +2,11 @@ import numpy as np
 import time
 from collections import defaultdict
 from functools import lru_cache
+from packages.timeDecorator import timeit
+from joblib import Parallel, delayed
 
 class DatasetEvaluator:
-    def __init__(self, df1, df2, expected={}, threshold=3, match_column=0):
+    def __init__(self, df1, df2, expected={}, threshold=3, match_column=0, trim = 4):
         """
         df1, df2: pandas DataFrames with columns [id, col1, ..., col5]
         expected: dictionary with keys 'tp', 'fp', 'fn'
@@ -16,7 +18,8 @@ class DatasetEvaluator:
         self.df2 = df2
         self.threshold = threshold
         self.match_column = match_column
-        
+        self.trim = trim
+
         self.ground_truth_ids = np.intersect1d(df1[self.match_column], df2[self.match_column])
         
         self.tp = 0
@@ -30,68 +33,74 @@ class DatasetEvaluator:
     def _is_similar(self, row1, row2):
         return np.sum(np.array(row1) == np.array(row2)) >= self.threshold
 
+    @lru_cache(maxsize=None)
+    def fast_chunk(self, s: str):
+        chunks = [s[i:i+4] for i in range(0, len(s) - len(s) % 4, 4)]
+        if self.trim > 0:
+            chunks = [chunk[:-self.trim] if len(chunk) > self.trim else '' for chunk in chunks]
+        return np.array(chunks)
+        
+    @timeit
+    def preproccess(self):
+        """
+        Preprocess df1 and df2 to:
+        - Join all string columns except ID
+        - Trim `trim` characters from end of each token
+        """    
+        def combine_and_trim_chunks(row):
+            chunks = [str(x) for x in row[1:]]  # skip ID
+            trimmed_chunks = [c[:-self.trim] if self.trim > 0 else c for c in chunks]
+            combined = ''.join(trimmed_chunks)
+            return (row[self.match_column], combined)
+    
+        self.df1_proc = self.df1.apply(combine_and_trim_chunks, axis=1).to_numpy()
+        self.df2_proc = self.df2.apply(combine_and_trim_chunks, axis=1).to_numpy()
 
+        self.df2_keys = np.array([row[0] for row in self.df2_proc])
+        self.df2_vals = np.array([row[1] for row in self.df2_proc])
+
+    
+    @timeit
     def evaluate(self):
-        # Preprocess df1 and df2: (ID, combined string)
-        df1_proc = self.df1.apply(lambda x: (x[self.match_column], ''.join(map(str, x[1:]))), axis=1).to_numpy()
-        df2_proc = self.df2.apply(lambda x: (x[self.match_column], ''.join(map(str, x[1:]))), axis=1).to_numpy()
-        
-        # Separate IDs and combined strings from df2
-        df2_keys = np.array([row[0] for row in df2_proc if row[0] in self.ground_truth_ids] )
-        df2_vals = np.array([row[1] for row in df2_proc])
-        
         # Build df2 buckets: combined string -> [ids]
-        df2_buckets = defaultdict(list)
-        for k, v in zip(df2_vals, df2_keys):
-            df2_buckets[k].append(v)
+        self.hashed_bucket = defaultdict(list)
+        for k, v in zip(self.df2_vals, self.df2_keys):
+            self.hashed_bucket[k].append(v)
         
-        # Precompute chunks for df2 values
-        chunked_df2 = {
-            k: np.array([k[i:i+4] for i in range(0, len(k), 4)])
-            for k in df2_buckets
-        }
+        # Precompute chunked df2 strings once
+        self.chunked_df2 = {k: self.fast_chunk(k) for k in self.hashed_bucket}
+    
+        # Precompute chunked df1 strings once
+        self.chunked_df1 = [(match_id, self.fast_chunk(combined)) for match_id, combined in self.df1_proc]
         
-        # Precompute chunks for df1 values
-        chunked_df1 = [
-            (match_id, np.array([combined[i:i+4] for i in range(0, len(combined), 4)]))
-            for match_id, combined in df1_proc
-        ]
-        
-        # Matching process
-        start_time = time.time()
-        for match_id, row1_chunks in chunked_df1:
-            for data, row2_chunks in chunked_df2.items():
-                match_count = np.sum(row1_chunks == row2_chunks)
+        for match_id, row1_chunks in self.chunked_df1:
+            for data_key, row2_chunks in self.chunked_df2.items():
+                match_count = np.count_nonzero(row1_chunks == row2_chunks)
                 if match_count >= self.threshold:
-                    df2_buckets[data].append(match_id)
+                    self.hashed_bucket[data_key].append(match_id)
                     break
-                    
-        self.elapsed_time = time.time() - start_time
+
     
-        # Evaluate precision/recall
-        matched = set()
+    @timeit
+    def calculateStatistics(self):
+        tp = 0
         fp = 0
-        ground_truth_ids_np = np.array(list(self.ground_truth_ids))
-        
-        for bucket in df2_buckets.values():
+        ground_truth_set = set(self.ground_truth_ids)
+    
+        for bucket in self.hashed_bucket.values():
             if len(bucket) > 1:
-                ids_to_check = np.array(bucket[1:])  # exclude the original
-                mask = np.isin(ids_to_check, ground_truth_ids_np)
-                matched |= set(ids_to_check[mask])
-                fp += mask.size - np.count_nonzero(mask)
+                if any(item in ground_truth_set for item in bucket[1:]):
+                    tp += 1
+                else:
+                    fp += 1
     
-        tp = len(matched)
-        fn = len(self.ground_truth_ids) - tp
-        precision = tp / (tp + fp) if (tp + fp) > 0 else 0
-        recall = tp / (tp + fn) if (tp + fn) > 0 else 0
-    
-        # Save results
         self.tp = tp
         self.fp = fp
-        self.fn = fn
-        self.precision = precision
-        self.recall = recall
-
+        self.fn = len(ground_truth_set) - tp
+        self.precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+        self.recall = tp / (tp + self.fn) if (tp + self.fn) > 0 else 0
+    
+        
     def printResults(self):
         # Print and assert
         print(f"Expected: {self.expected}")
@@ -101,119 +110,43 @@ class DatasetEvaluator:
         print(f"False Negatives: {self.fn}")
         print(f"Precision: {self.precision:.4f}")
         print(f"Recall: {self.recall:.4f}")
-        print(f"Elapsed Time: {self.elapsed_time:.2f} seconds")
 
-# import numpy as np
-# import time
-# from collections import defaultdict
-# import json
 
-# class DatasetEvaluator:
-#     def __init__(self, df1, df2, expected={}, threshold=3, match_column=0):
-#         """
-#         df1, df2: pandas DataFrames with columns [id, col1, ..., col5]
-#         expected: dictionary with keys 'tp', 'fp', 'fn'
-#         threshold: number of matching columns to count as a match (default=3)
-#         """
-#         self.df1 = df1
-#         self.df2 = df2
-#         self.expected = expected
-#         self.threshold = threshold
-#         self.match_column = match_column
-#         self.ground_truth_ids = np.intersect1d(df1[self.match_column], df2[self.match_column])
-        
-#         self.tp = 0
-#         self.fp = 0
-#         self.fn = 0
-#         self.precision = 0.0
-#         self.recall = 0.0
-#         self.elapsed_time = 0.0
-#         self.hash_buckets = defaultdict(list)
-        
-
-#     def _is_similar(self, row1, row2):
-#         return np.sum(np.array(row1) == np.array(row2)) >= 1
-
-#     def _slice_row_string(self, combined_str, chunk_size=4):
-#         return tuple(combined_str[i:i + chunk_size] for i in range(0, len(combined_str), chunk_size))
+    # @timeit
+    # def evaluate(self, n_jobs=4, batch_size=100):
+    #     # Step 1: Build df2 bucket (string -> list of ids)
+    #     self.hashed_bucket = defaultdict(list)
+    #     for k, v in zip(self.df2_vals, self.df2_keys):
+    #         self.hashed_bucket[k].append(v)
     
-#     def evaluate(self):    
-#         self.df1_proc = self.df1.apply(lambda x: (x[self.match_column], ''.join(map(str, x[1:]))), axis=1).to_numpy()
-#         self.df2_proc = self.df2.apply(lambda x: (x[self.match_column], ''.join(map(str, x[1:]))), axis=1).to_numpy()
-
-#         start_time = time.time()
-        
-#         # Nested defaultdict: {prefix_key: {suffix: [match_ids]}}
-#         self.hash_buckets = defaultdict(lambda: defaultdict(list))
+    #     # Step 2: Precompute chunked df2 strings
+    #     chunked_df2 = {k: self.fast_chunk(k) for k in self.hashed_bucket}
     
-#         for match_id, combined in self.df1_proc:
-#             prefix_key = combined[:8]
-#             suffix = combined[8:]
-#             row1 = self._slice_row_string(suffix)
+    #     # Step 3: Precompute df1 as (id, chunked_string)
+    #     chunked_df1 = [(match_id, self.fast_chunk(combined))
+    #                    for match_id, combined in self.df1_proc]
     
-#             # Try to find a similar existing suffix in this prefix group
-#             found_match = False
-#             for existing_suffix in self.hash_buckets[prefix_key]:
-#                 row2 = self._slice_row_string(existing_suffix)
-#                 if self._is_similar(row1, row2):
-#                     self.hash_buckets[prefix_key][existing_suffix].append(match_id)
-#                     found_match = True
-#                     break
+    #     # Step 4: Create batches of df1 rows
+    #     batches = [chunked_df1[i:i+batch_size] for i in range(0, len(chunked_df1), batch_size)]
     
-#             if not found_match:
-#                 self.hash_buckets[prefix_key][suffix].append(match_id)
+    #     # Step 5: Matching function for one batch
+    #     def match_batch(batch):
+    #         matched = []
+    #         for match_id, row1_chunks in batch:
+    #             for data_key, row2_chunks in chunked_df2.items():
+    #                 if len(row1_chunks) != len(row2_chunks):
+    #                     continue
+    #                 if np.count_nonzero(row1_chunks == row2_chunks) >= self.threshold:
+    #                     matched.append((data_key, match_id))
+    #                     break
+    #         return matched
     
-
-#         for match_id, combined in self.df2_proc:
-#             prefix_key = combined[:8]
-#             suffix = combined[8:]
-#             row1 = self._slice_row_string(suffix)
+    #     # Step 6: Run in parallel
+    #     all_matches = Parallel(n_jobs=n_jobs, backend="threading")(
+    #         delayed(match_batch)(batch) for batch in batches
+    #     )
     
-#             # Try to find a similar existing suffix in this prefix group
-#             found_match = False
-#             for existing_suffix in self.hash_buckets[prefix_key]:
-#                 row2 = self._slice_row_string(existing_suffix)
-#                 if self._is_similar(row1, row2):
-#                     self.hash_buckets[prefix_key][existing_suffix].append(match_id)
-#                     found_match = True
-#                     break
-    
-#             if not found_match:
-#                 self.hash_buckets[prefix_key][suffix].append(match_id)
-                
-#         self.elapsed_time = time.time() - start_time
-
-#         print(json.dumps(self.hash_buckets, indent=4))
-
-
-    
-        
-#     def calculateStatistics(self):
-        
-#         fp, tp, fn, precision, recall = 0 , 0 , 0, 0, 0        
-#         matched = set()
-
-
-#         tp = sum(1 for x in matched if x[0] in self.ground_truth_ids)
-#         fn = len(self.ground_truth_ids) - tp
-
-#         precision = tp / (tp + fp) if (tp + fp) > 0 else 0
-#         recall = tp / (tp + fn) if (tp + fn) > 0 else 0
-
-#         # Save results
-#         self.tp = tp
-#         self.fp = fp
-#         self.fn = fn
-#         self.precision = precision
-#         self.recall = recall
-
-#     def printResults(self):
-#         # Print and assert
-#         print(f"Expected: {self.expected}")
-#         print(f"Ground Truth Size: {len(self.ground_truth_ids)}")
-#         print(f"True Positives: {self.tp}")
-#         print(f"False Positives: {self.fp}")
-#         print(f"False Negatives: {self.fn}")
-#         print(f"Precision: {self.precision:.4f}")
-#         print(f"Recall: {self.recall:.4f}")
-#         print(f"Elapsed Time: {self.elapsed_time:.2f} seconds")
+    #     # Step 7: Apply matches
+    #     for matches in all_matches:
+    #         for data_key, match_id in matches:
+    #             self.hashed_bucket[data_key].append(match_id)
