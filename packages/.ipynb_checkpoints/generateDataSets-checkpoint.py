@@ -4,13 +4,17 @@ import random
 import string
 
 class SyntheticMatcherDataset:
-    def __init__(self, size, ground_truth_ratio=0.25, expected = {}, true_positive_ratio=0.66, threshold=3):
+    def __init__(self, size, datasets_ratio = (1, 1), ground_truth_ratio=0.25, true_positive_ratio=0.66, expected = {}, threshold=3):
         self.size = size
+        self.datasets_ratio = datasets_ratio
         self.ground_truth_ratio = ground_truth_ratio
         self.true_positive_ratio = true_positive_ratio
+        
         self.threshold = threshold
         self.ground_truth_ids = set()
         self.false_negatives = set()
+        
+        
         self.df1 = None
         self.df2 = None
         self.expected = expected
@@ -44,9 +48,10 @@ class SyntheticMatcherDataset:
         df1 = self._generate_dataframe(self.size)
         df2_rows = []
 
-        n_ground_truth = int(self.size * self.ground_truth_ratio)
+        n_ground_truth = int(self.size * self.ground_truth_ratio * self.datasets_ratio[0])
         n_true_positives = int(n_ground_truth * self.true_positive_ratio)
-        n_false_positives = n_ground_truth - n_true_positives
+        n_false_positives = int(n_true_positives * self.true_positive_ratio)
+        
         all_indices = list(df1.index)
 
         ground_truth_indices = random.sample(all_indices, n_ground_truth)
@@ -86,14 +91,14 @@ class SyntheticMatcherDataset:
 
         # -- RANDOM NOISE: completely new entries
         n_used = n_true_positives + n_false_positives + len(fn_indices)
-        n_random = self.size - n_used
+        n_random = self.size * self.datasets_ratio[1] - n_used
         for _ in range(n_random):
             new_id = f"NEW{random.randint(10000, 99999)}"
             new_row = [new_id] + [self._generate_soundex_code() for _ in range(5)]
             df2_rows.append(new_row)
 
         # Final shuffle and assignment
-        # random.shuffle(df2_rows)
+        random.shuffle(df2_rows)
         df2 = pd.DataFrame(df2_rows, columns=df1.columns)
 
         self.expected['gt'] = len(ground_truth_indices)
