@@ -6,7 +6,7 @@ from packages.timeDecorator import timeit
 from joblib import Parallel, delayed
 
 class DatasetEvaluator:
-    def __init__(self, df1, df2, expected={}, threshold=3, match_column=0, trim = 4):
+    def __init__(self, df1, df2, expected={}, threshold=3, match_column=0, trim = 0):
         """
         df1, df2: pandas DataFrames with columns [id, col1, ..., col5]
         expected: dictionary with keys 'tp', 'fp', 'fn'
@@ -35,24 +35,18 @@ class DatasetEvaluator:
 
     @lru_cache(maxsize=None)
     def fast_chunk(self, s: str):
-        chunks = [s[i:i+4] for i in range(0, len(s) - len(s) % 4, 4)]
-        if self.trim > 0:
-            chunks = [chunk[:-self.trim] if len(chunk) > self.trim else '' for chunk in chunks]
-        return np.array(chunks)
+        step = len(s) // (5)
+        return np.array([s[i:i+step] for i in range(0, len(s), step)])
         
     @timeit
     def preproccess(self):
-        """
-        Preprocess df1 and df2 to:
-        - Join all string columns except ID
-        - Trim `trim` characters from end of each token
-        """    
+ 
         def combine_and_trim_chunks(row):
             chunks = [str(x) for x in row[1:]]  # skip ID
             trimmed_chunks = [c[:-self.trim] if self.trim > 0 else c for c in chunks]
             combined = ''.join(trimmed_chunks)
             return (row[self.match_column], combined)
-    
+
         self.df1_proc = self.df1.apply(combine_and_trim_chunks, axis=1).to_numpy()
         self.df2_proc = self.df2.apply(combine_and_trim_chunks, axis=1).to_numpy()
 
