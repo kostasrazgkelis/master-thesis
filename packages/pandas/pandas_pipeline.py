@@ -1,16 +1,24 @@
-import numpy as np
 from collections import defaultdict
 from functools import lru_cache
-from packages.timeDecorator import timeit
+import numpy as np
+from packages.utils.decorators.time_decorator import timeit
+
+
+@lru_cache(maxsize=None)
+def fast_chunk(s: str):
+    step = len(s) // (5)
+    return np.array([s[i : i + step] for i in range(0, len(s), step)])
 
 
 class DatasetEvaluator:
-    def __init__(self, df1, df2, expected={}, threshold=3, match_column=0, trim=0):
+    def __init__(self, df1, df2, expected=None, threshold=3, match_column=0, trim=0):
         """
         df1, df2: pandas DataFrames with columns [id, col1, ..., col5]
         expected: dictionary with keys 'tp', 'fp', 'fn'
         threshold: number of matching columns to count as a match (default=3)
         """
+        if expected is None:
+            expected = {}
         self.expected = expected
 
         self.df1 = df1
@@ -23,6 +31,13 @@ class DatasetEvaluator:
             df1[self.match_column], df2[self.match_column]
         )
 
+        self.hashed_bucket = defaultdict(list)
+        self.df1_proc = None
+        self.df2_proc = None
+        self.df2_keys = None
+        self.df2_vals = None
+        self.chunked_df2 = None
+        self.chunked_df1 = None
         self.tp = 0
         self.fp = 0
         self.fn = 0
@@ -30,17 +45,8 @@ class DatasetEvaluator:
         self.recall = 0.0
         self.elapsed_time = 0.0
 
-    @lru_cache(maxsize=None)
-    def _is_similar(self, row1, row2):
-        return np.sum(np.array(row1) == np.array(row2)) >= self.threshold
-
-    @lru_cache(maxsize=None)
-    def fast_chunk(self, s: str):
-        step = len(s) // (5)
-        return np.array([s[i : i + step] for i in range(0, len(s), step)])
-
     @timeit
-    def preproccess(self):
+    def preprocess(self):
 
         def combine_and_trim_chunks(row):
             chunks = [str(x) for x in row[1:]]  # skip ID
@@ -57,17 +63,15 @@ class DatasetEvaluator:
     @timeit
     def evaluate(self):
         # Build df2 buckets: combined string -> [ids]
-        self.hashed_bucket = defaultdict(list)
         for k, v in zip(self.df2_vals, self.df2_keys):
             self.hashed_bucket[k].append(v)
 
         # Precompute chunked df2 strings once
-        self.chunked_df2 = {k: self.fast_chunk(k) for k in self.hashed_bucket}
+        self.chunked_df2 = {k: fast_chunk(k) for k in self.hashed_bucket}
 
         # Precompute chunked df1 strings once
         self.chunked_df1 = [
-            (match_id, self.fast_chunk(combined))
-            for match_id, combined in self.df1_proc
+            (match_id, fast_chunk(combined)) for match_id, combined in self.df1_proc
         ]
 
         for match_id, row1_chunks in self.chunked_df1:
@@ -78,7 +82,7 @@ class DatasetEvaluator:
                     break
 
     @timeit
-    def calculateStatistics(self):
+    def calculate_statistics(self):
         tp = 0
         fp = 0
         ground_truth_set = set(self.ground_truth_ids)
