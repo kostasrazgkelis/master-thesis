@@ -72,6 +72,8 @@ class TestDatasetEvaluator(unittest.TestCase):
     def test_with_synthetic_data(self):
         expected = {"gt": 125, "tp": 93, "fp": 69, "fn": 32}
         
+# The code snippet you provided is generating synthetic data for testing purposes. Here's a breakdown
+# of what it does:
         # Generate synthetic data
         generator = smd(
             size=500,

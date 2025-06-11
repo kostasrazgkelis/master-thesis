@@ -15,5 +15,7 @@ pathspec==0.12.1
 protobuf==4.24.3
 pylint==3.3.7
 tomlkit==0.13.2
-pandas==2.2.3
-numpy==2.2.6
+pandas==1.5.3
+numpy==1.23.5
+pyspark==3.3.2
+graphframes==0.6
