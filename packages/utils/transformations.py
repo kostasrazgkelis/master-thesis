@@ -12,7 +12,7 @@ class MyTransformation:
         combined = "".join(trimmed_chunks)
         return (row[0], combined)
         
-    def apply_soundex(self, df: pd.DataFrame, match_column: 0):
+    def apply_soundex(self, df: pd.DataFrame, match_column: str):
         for col_name in df.columns:
             if col_name != match_column:
                 df[col_name] = df[col_name].apply(lambda x: jellyfish.soundex(str(x)))
