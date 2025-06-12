@@ -1,31 +1,40 @@
 import pandas as pd
-import numpy as np
 import random
 import string
 
+
 class SyntheticMatcherDataset:
-    def __init__(self, size, datasets_ratio = (1, 1), ground_truth_ratio=0.25, true_positive_ratio=0.66, expected = {}, threshold=3):
+    def __init__(
+        self,
+        size,
+        datasets_ratio=(1, 1),
+        ground_truth_ratio=0.25,
+        true_positive_ratio=0.66,
+        expected=None,
+        threshold=3,
+    ):
         self.size = size
         self.datasets_ratio = datasets_ratio
         self.ground_truth_ratio = ground_truth_ratio
         self.true_positive_ratio = true_positive_ratio
-        
+
         self.threshold = threshold
         self.ground_truth_ids = set()
         self.false_negatives = set()
-        
-        
+
         self.df1 = None
         self.df2 = None
         self.expected = expected
         self.ground_truth_matches = set()  # IDs that should match (True Positives)
-        self.false_negatives = set()        # IDs that should match but were made hard
+        self.false_negatives = set()  # IDs that should match but were made hard
         self._generate()
 
     @staticmethod
     def _generate_soundex_code():
         """Generate a fake soundex-like 4-character code."""
-        return random.choice(string.ascii_uppercase) + ''.join(random.choices(string.digits, k=3))
+        return random.choice(string.ascii_uppercase) + "".join(
+            random.choices(string.digits, k=3)
+        )
 
     def _generate_dataframe(self, n_rows):
         """Generate a base DataFrame."""
@@ -34,24 +43,26 @@ class SyntheticMatcherDataset:
             id_ = f"ID{i:05d}"
             soundex_codes = [self._generate_soundex_code() for _ in range(5)]
             data.append([id_] + soundex_codes)
-        columns = ['id', 'col1', 'col2', 'col3', 'col4', 'col5']
+        columns = ["id", "col1", "col2", "col3", "col4", "col5"]
         return pd.DataFrame(data, columns=columns)
 
     def _modify_columns(self, row, n_to_modify):
-        cols = ['col1', 'col2', 'col3', 'col4', 'col5']
+        cols = ["col1", "col2", "col3", "col4", "col5"]
         cols_to_modify = random.sample(cols, n_to_modify)
         for col in cols_to_modify:
             row[col] = self._generate_soundex_code()
         return row
-        
+
     def _generate(self):
         df1 = self._generate_dataframe(self.size)
         df2_rows = []
 
-        n_ground_truth = int(self.size * self.ground_truth_ratio * self.datasets_ratio[0])
+        n_ground_truth = int(
+            self.size * self.ground_truth_ratio * self.datasets_ratio[0]
+        )
         n_true_positives = int(n_ground_truth * self.true_positive_ratio)
         n_false_positives = int(n_true_positives * self.true_positive_ratio)
-        
+
         all_indices = list(df1.index)
 
         ground_truth_indices = random.sample(all_indices, n_ground_truth)
@@ -101,11 +112,10 @@ class SyntheticMatcherDataset:
         random.shuffle(df2_rows)
         df2 = pd.DataFrame(df2_rows, columns=df1.columns)
 
-        self.expected['gt'] = len(ground_truth_indices)
-        self.expected['tp'] = len(tp_indices)
-        self.expected['fp'] = len(fp_indices)
-        self.expected['fn'] = len(fn_indices)
-        
+        self.expected["gt"] = len(ground_truth_indices)
+        self.expected["tp"] = len(tp_indices)
+        self.expected["fp"] = len(fp_indices)
+        self.expected["fn"] = len(fn_indices)
+
         self.df1 = df1
         self.df2 = df2
-
