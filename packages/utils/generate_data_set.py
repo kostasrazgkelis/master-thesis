@@ -10,7 +10,7 @@ class SyntheticMatcherDataset:
         datasets_ratio=(1, 1),
         ground_truth_ratio=0.25,
         true_positive_ratio=0.66,
-        expected={},
+        expected=None,
         threshold=3,
     ):
         self.size = size
