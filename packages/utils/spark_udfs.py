@@ -18,7 +18,7 @@ def get_trimmer_udf(trim=0):
     elif trim == 2:
         return trim_two_chars
     else:
-        return pandas_udf(lambda s: s if pd.notnull(s) else "", StringType())
+        return pandas_udf(lambda s: s, StringType())
     
 @pandas_udf(StringType())
 def soundex_udf(col: pd.Series) -> pd.Series:
