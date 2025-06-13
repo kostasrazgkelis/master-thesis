@@ -57,3 +57,11 @@ htmlcov/
 *.bak
 *.old
 *.orig
+
+.ipynb_checkpoints/
+*.nbconvert.ipynb
+*.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+
+output/
+output/*
