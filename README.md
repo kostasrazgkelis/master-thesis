@@ -73,7 +73,7 @@ Comprehensive evaluation against ground truth data
 -----------------------------------------------
 
 7. **Vortex PySpark Pipeline Proposal**
-    ![Data Architecture](docs/pipelines/hashed_vortex_proposal_architecture.png.png)
+    ![Data Architecture](docs/pipelines/hashed_vortex_proposal_architecture.png)
     There is another variation of the multiparty record linkage (MRL) solution where we build a vortex that will store the total data in an indexed structure. This should 
     reduce complexity of the system, caching the MRL hashed data and be used later when requested by any party.
 
