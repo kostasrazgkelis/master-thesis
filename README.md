@@ -9,7 +9,7 @@ This diagram provides a visual overview of how data flows through the system, in
 
 Entity Matching Pipeline
 Overview
-This repository contains a PySpark-based entity matching pipeline designed for large-scale record linkage and deduplication. The system identifies and groups records that represent the same real-world entities across multiple datasets, even when exact matches are not possible due to variations in data formatting, spelling, or errors.
+This repository contains a PySpark-based Multiparty entity matching designed for large-scale record linkage and deduplication. The system identifies and groups records that represent the same real-world entities across multiple datasets, even when exact matches are not possible due to variations in data formatting, spelling, or errors.
 
 Problem Statement
 In real-world scenarios, the same entity (person, organization, product) often appears differently across multiple datasets due to:
@@ -69,6 +69,15 @@ Comprehensive evaluation against ground truth data
 
 6. **Refactor PySpark Pipeline**  
     Move the existing PySpark entity matching pipeline code into a dedicated `pypsark_pipeline` package within the `packages/` directory. Update all relevant import statements and documentation to reflect this new structure for better modularity and maintainability.
+
+-----------------------------------------------
+
+7. **Vortex PySpark Pipeline Proposal**
+    ![Data Architecture](docs/pipelines/hashed_vortex_proposal_architecture.png)
+    There is another variation of the multiparty record linkage (MRL) solution where we build a vortex that will store the total data in an indexed structure. This should 
+    reduce complexity of the system, caching the MRL hashed data and be used later when requested by any party.
+
+
 
 ## Getting Started
 
