@@ -1,0 +1,15 @@
+version: '3'
+services:
+  pyspark:
+    image: jupyter/pyspark-notebook:latest
+    ports:
+      - "8888:8888"
+      - "4040:4040"
+    volumes:
+<<<<<<<< HEAD:container/docker-compose.yml
+      - ..:/home/jovyan/work
+========
+      - .:/home/jovyan/work
+>>>>>>>> origin/dev:docker-compose.yml
+    mem_limit: 4g   # Limit memory to 8 GB
+    cpus: 3         # Limit CPU usage to 2 cores
