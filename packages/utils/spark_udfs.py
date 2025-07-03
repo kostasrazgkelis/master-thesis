@@ -20,10 +20,11 @@ def get_trimmer_udf(trim=0):
     else:
         return pandas_udf(lambda s: s, StringType())
     
-@pandas_udf(StringType())
-def soundex_udf(col: pd.Series) -> pd.Series:
-    return col.apply(lambda x: jellyfish.soundex(str(x)) if pd.notnull(x) else "")
 
 @pandas_udf(StringType())
 def hash_udf(col: pd.Series) -> pd.Series:
     return col.apply(lambda x: hashlib.sha256(str(x).encode('utf-8')).hexdigest() if pd.notnull(x) else "")
+
+@pandas_udf(StringType())
+def soundex_udf(col: pd.Series) -> pd.Series:
+    return col.apply(lambda x: jellyfish.soundex(x) if pd.notnull(x) else None)

@@ -6,9 +6,14 @@ of different sizes for entity matching experiments.
 """
 from typing import List
 import os
+import sys
 import pandas as pd
 
-FILE_PATHS = "/data/thesis/packages/data"
+project_root = os.path.abspath(os.path.join(os.getcwd(), "../.."))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+    
+FILE_PATHS = os.path.join(project_root, "data")
 
 
 class MyDatasets:
