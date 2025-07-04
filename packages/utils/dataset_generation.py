@@ -59,7 +59,7 @@ class DataFrameCollection:
                     new_df[col] = new_df[col].apply(lambda x: jellyfish.soundex(str(x)) if pd.notnull(x) else x)
             encoded_dfs.append(new_df)
 
-        return DataFrameCollection(encoded_dfs, excluded_columns=self.excluded_columns)s
+        return DataFrameCollection(encoded_dfs, excluded_columns=self.excluded_columns)
     
     def hash_sha256(self):
         """Apply SHA-256 hash to all object columns, except excluded ones."""
