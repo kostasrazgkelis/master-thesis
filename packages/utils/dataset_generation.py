@@ -77,11 +77,30 @@ class DataFrameCollection:
 
         return DataFrameCollection(hashed_dfs, excluded_columns=self.excluded_columns)
 
+
+    def noise_10(self):
+        return self._add_noise(0.1)
+    
     def noise_50(self):
         return self._add_noise(0.5)
 
     def noise_100(self):
         return self._add_noise(1.0)
+    
+    def noise_200(self):
+        return self._add_noise(2.0)
+
+    def noise_400(self):
+        return self._add_noise(4.0)
+    
+    def noise_600(self):
+        return self._add_noise(6.0)
+
+    def noise_800(self):
+        return self._add_noise(8.0)
+        
+    def noise_1000(self):
+        return self._add_noise(10.0)
 
     def __getitem__(self, idx):
         return self.dataframes[idx]
