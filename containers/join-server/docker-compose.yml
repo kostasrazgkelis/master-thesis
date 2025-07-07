@@ -3,6 +3,7 @@ version: '3.8'
 services:
   join-server:
     build: .
+    restart: unless-stopped
     ports:
       - "8000:8000"
     volumes:
@@ -14,11 +15,15 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
+      - DJANGO_SUPERUSER_USERNAME=admin
+      - DJANGO_SUPERUSER_EMAIL=admin@example.com
+      - DJANGO_SUPERUSER_PASSWORD=admin123
     depends_on:
       - db
 
   db:
     image: postgres:15
+    restart: unless-stopped
     environment:
       - POSTGRES_DB=joinserver
       - POSTGRES_USER=postgres
