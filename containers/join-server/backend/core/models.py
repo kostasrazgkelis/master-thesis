@@ -12,11 +12,9 @@ class CustomUser(AbstractUser):
     date_of_birth = models.DateField(blank=True, null=True)
     bio = models.TextField(max_length=500, blank=True)
 
-
     def __str__(self):
         return self.username
     
     class Meta:
-        db_table = 'auth_user'
         verbose_name = 'User'
         verbose_name_plural = 'Users'
