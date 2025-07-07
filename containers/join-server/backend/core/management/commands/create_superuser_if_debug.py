@@ -1,7 +1,9 @@
 from django.core.management.base import BaseCommand
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.conf import settings
 import os
+
+User = get_user_model()
 
 
 class Command(BaseCommand):
@@ -10,7 +12,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         if not settings.DEBUG:
             self.stdout.write(
-                self.style.WARNING('Superuser creation skipped - DEBUG is False')
+                self.style.WARNING('Superuser creation skipped - DEBUG is False')  # type: ignore
             )
             return
 
@@ -20,7 +22,7 @@ class Command(BaseCommand):
 
         if User.objects.filter(username=username).exists():
             self.stdout.write(
-                self.style.WARNING(f'Superuser "{username}" already exists')
+                self.style.WARNING(f'Superuser "{username}" already exists')  # type: ignore
             )
             return
 
@@ -30,5 +32,5 @@ class Command(BaseCommand):
             password=password
         )
         self.stdout.write(
-            self.style.SUCCESS(f'Superuser "{username}" created successfully')
+            self.style.SUCCESS(f'Superuser "{username}" created successfully')  # type: ignore
         )
