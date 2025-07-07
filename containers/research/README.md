@@ -4,15 +4,17 @@ This directory contains Docker configuration files for running the Entity Matchi
 
 ## Files
 
-- `docker-compose.yml`: Docker Compose configuration for easy container orchestration
+- `research/docker-compose.yml`: Docker Compose configuration for easy container orchestration
+- `research/Dockerfile`: Docker image configuration
+- `research/requirements.txt`: Python dependencies
 
 ## Quick Start
 
 ### Using Docker Compose
 
-1. **Navigate to the container directory**:
+1. **Navigate to the research directory**:
 ```bash
-cd container
+cd containers/research
 ```
 
 2. **Start the container**:
