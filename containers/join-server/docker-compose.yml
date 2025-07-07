@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  join-server:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      - DJANGO_SETTINGS_MODULE=backend.settings
+      - POSTGRES_DB=joinserver
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=joinserver
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  postgres_data:
