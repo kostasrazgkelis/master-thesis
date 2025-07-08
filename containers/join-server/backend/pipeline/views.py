@@ -1,13 +1,14 @@
-from rest_framework import generics, permissions, status, serializers
+from rest_framework import generics, permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from django.contrib.auth import get_user_model
 from django.db import models
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.openapi import OpenApiTypes
 from .serializers import (
-    MatchingPipelineSerializer, PipelineParticipantSerializer, CreatePipelineSerializer
+    MatchingPipelineSerializer, CreatePipelineSerializer, AcceptPipelineSerializer
 )
-from .models import MatchingPipeline, PipelineParticipant
+from .models import MatchingPipeline, PipelineParty
 
 User = get_user_model()
 
@@ -20,11 +21,11 @@ class MatchingPipelineListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
-        # Return pipelines where user is either creator or participant
+        # Return pipelines where user is either creator or party
         user = self.request.user
         return MatchingPipeline.objects.filter(
             models.Q(created_by=user) | 
-            models.Q(participants__user=user)
+            models.Q(parties__user=user)
         ).distinct()
     
     def get_serializer_class(self):
@@ -61,52 +62,132 @@ class MatchingPipelineDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
-        # Only allow access to pipelines where user is creator or participant
+        # Only allow access to pipelines where user is creator or party
         user = self.request.user
         return MatchingPipeline.objects.filter(
             models.Q(created_by=user) | 
-            models.Q(participants__user=user)
+            models.Q(parties__user=user)
         ).distinct()
 
 
 @extend_schema(
-    summary="Update participant status",
-    description="Accept or decline participation in a pipeline",
-    request=serializers.Serializer,
-    responses={200: PipelineParticipantSerializer()}
+    summary="Accept pipeline and upload file",
+    description="Accept participation in a pipeline and upload data file. Supported formats: CSV, JSON, XLSX, Parquet, TXT (max 50MB)",
+    request={
+        'multipart/form-data': {
+            'type': 'object',
+            'properties': {
+                'file': {
+                    'type': 'string',
+                    'format': 'binary',
+                    'description': 'Data file to upload for the pipeline'
+                }
+            },
+            'required': ['file']
+        }
+    },
+    responses={
+        200: MatchingPipelineSerializer(),
+        400: {
+            'type': 'object',
+            'properties': {
+                'error': {'type': 'string'},
+                'file': {'type': 'array', 'items': {'type': 'string'}}
+            },
+            'example': {
+                'file': ['File size cannot exceed 50MB']
+            }
+        },
+        404: {
+            'type': 'object',
+            'properties': {
+                'error': {'type': 'string'}
+            },
+            'example': {
+                'error': 'Pipeline or party participation not found'
+            }
+        }
+    },
+    parameters=[
+        OpenApiParameter(
+            name='pipeline_id',
+            type=OpenApiTypes.UUID,
+            location=OpenApiParameter.PATH,
+            description='UUID of the pipeline to accept'
+        )
+    ]
 )
-@api_view(['POST'])
+@api_view(['PUT'])
 @permission_classes([permissions.IsAuthenticated])
-def update_participant_status(request, pipeline_id):
+def accept_pipeline(request, pipeline_id):
     """
-    API view to update participant status (accept/decline).
+    API view to accept pipeline and upload file - matches your PUT pipeline/{id}/me/ endpoint.
+    Handles multipart/form-data for file upload.
     """
+    
     try:
         pipeline = MatchingPipeline.objects.get(id=pipeline_id)
-        participant = PipelineParticipant.objects.get(
+        party = PipelineParty.objects.get(
             pipeline=pipeline,
             user=request.user
         )
-    except (MatchingPipeline.DoesNotExist, PipelineParticipant.DoesNotExist):
+        print(f"DEBUG accept_pipeline: Found party = {party}")
+        print(f"DEBUG accept_pipeline: Party user = {party.user}")
+        print(f"DEBUG accept_pipeline: Party accepted = {party.accepted}")
+        
+    except MatchingPipeline.DoesNotExist:
         return Response(
-            {'error': 'Pipeline or participation not found'}, 
+            {'error': 'Pipeline not found'}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except PipelineParty.DoesNotExist:
+        return Response(
+            {'error': 'You are not a party in this pipeline'}, 
             status=status.HTTP_404_NOT_FOUND
         )
     
-    new_status = request.data.get('status')
-    if new_status not in ['ACCEPTED', 'DECLINED']:
+    # Check if party already accepted
+    if party.accepted:
         return Response(
-            {'error': 'Status must be ACCEPTED or DECLINED'}, 
+            {'error': f'User {party.user.username} has already accepted this pipeline'}, 
             status=status.HTTP_400_BAD_REQUEST
         )
     
-    participant.status = new_status
-    participant.save()
+    # Validate and process file upload
+    serializer = AcceptPipelineSerializer(instance=party, data=request.data)
+    if serializer.is_valid():
+        # This will call party.accept_and_upload(file) which:
+        # 1. Saves the uploaded file to the party.file field
+        # 2. Sets party.accepted = True
+        # 3. Updates pipeline.parties_accepted count
+        # 4. Updates pipeline status if all parties accepted
+        serializer.save()
+        
+        # Refresh pipeline from database to get updated data
+        pipeline.refresh_from_db()
+        
+        # Return updated pipeline data
+        pipeline_serializer = MatchingPipelineSerializer(pipeline)
+        return Response(pipeline_serializer.data)
     
-    # Check if all users have accepted and update pipeline status
-    if pipeline.all_users_accepted() and pipeline.status == 'PENDING':
-        pipeline.status = 'IN_PROGRESS'
-        pipeline.save()
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@extend_schema(
+    summary="Get user's pipelines",
+    description="Get all pipelines where user is a party - matches your GET /pipelines/me/ endpoint",
+    responses={200: MatchingPipelineSerializer(many=True)}
+)
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def get_user_pipelines(request):
+    """
+    API view to get pipelines for current user - matches your GET /pipelines/me/ endpoint.
+    """
+    user = request.user
+    pipelines = MatchingPipeline.objects.filter(
+        parties__user=user
+    ).distinct()
     
-    serializer = PipelineParticipantSerializer(participant)
-    return Response(serializer.data)
+    serializer = MatchingPipelineSerializer(pipelines, many=True)
+    return Response({'pipelines': serializer.data})

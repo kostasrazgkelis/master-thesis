@@ -21,6 +21,8 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, Spec
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    # Authentication URLs for DRF browsable API and Swagger
+    path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
     # API endpoints
     path('api/', include('core.urls')),
     path('api/pipelines/', include('pipeline.urls')),

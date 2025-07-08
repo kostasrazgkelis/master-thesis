@@ -1,11 +1,15 @@
 from django.urls import path
 from .views import (
-    MatchingPipelineListCreateView, MatchingPipelineDetailView, 
-    update_participant_status
+    MatchingPipelineListCreateView, 
+    MatchingPipelineDetailView,
+    accept_pipeline,
+    get_user_pipelines
+
 )
 
 urlpatterns = [
     path('', MatchingPipelineListCreateView.as_view(), name='pipeline-list-create'),
-    path('<int:pk>/', MatchingPipelineDetailView.as_view(), name='pipeline-detail'),
-    path('<int:pipeline_id>/status/', update_participant_status, name='update-participant-status'),
+    path('me/', get_user_pipelines, name='pipeline-user-list'),
+    path('<uuid:pk>/', MatchingPipelineDetailView.as_view(), name='pipeline-detail'),
+    path('<uuid:pipeline_id>/me/', accept_pipeline, name='pipeline-accept')
 ]
