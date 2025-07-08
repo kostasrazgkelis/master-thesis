@@ -131,10 +131,6 @@ def accept_pipeline(request, pipeline_id):
             pipeline=pipeline,
             user=request.user
         )
-        print(f"DEBUG accept_pipeline: Found party = {party}")
-        print(f"DEBUG accept_pipeline: Party user = {party.user}")
-        print(f"DEBUG accept_pipeline: Party accepted = {party.accepted}")
-        
     except MatchingPipeline.DoesNotExist:
         return Response(
             {'error': 'Pipeline not found'}, 
