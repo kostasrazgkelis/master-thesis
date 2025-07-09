@@ -3,8 +3,10 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+import logging
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 def upload_to_pipeline_files(instance, filename):
@@ -37,6 +39,8 @@ class MatchingPipeline(models.Model):
     execution_started_at = models.DateTimeField(null=True, blank=True, help_text="When pipeline execution started")
     execution_completed_at = models.DateTimeField(null=True, blank=True, help_text="When pipeline execution completed")
     error_message = models.TextField(null=True, blank=True, help_text="Error message if pipeline failed")
+    result_data = models.JSONField(null=True, blank=True, help_text="JSON result data from pipeline execution")
+    celery_task_id = models.CharField(max_length=255, null=True, blank=True, help_text="Celery task ID for tracking")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -56,7 +60,7 @@ class MatchingPipeline(models.Model):
     @property
     def is_ready_to_start(self):
         """Check if pipeline is ready to start (all parties uploaded data)"""
-        return self.all_parties_accepted and self.status == 'READY'
+        return self.status == 'READY'
     
     @property
     def can_transition_to_ready(self):
@@ -78,44 +82,43 @@ class MatchingPipeline(models.Model):
     
     def update_status(self):
         """Update pipeline status based on parties acceptance"""
-        if self.status == 'PENDING' and self.can_transition_to_ready:
+
+        if self.can_transition_to_ready:
             self.status = 'READY'
-            print(f"Pipeline {self.name} is now READY - all {self.total_parties} parties have uploaded data")
-        elif self.status not in ['RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED']:
-            # Only update if not in a final or running state
-            if self.parties_accepted == 0:
-                self.status = 'PENDING'
-            elif self.parties_accepted > 0 and not self.all_parties_accepted:
-                self.status = 'PENDING'
-        
-        self.save()
+            self.save()
+
+            self.trigger_processing()
+            return
+
+
     
-    def start_execution(self):
-        """Start pipeline execution - transition from READY to RUNNING"""
-        if self.status != 'READY':
-            raise ValidationError(f"Cannot start pipeline - current status is {self.status}, must be READY")
+    def trigger_processing(self):
         
-        if not self.all_parties_accepted:
-            raise ValidationError("Cannot start pipeline - not all parties have uploaded data")
-        
-        self.status = 'RUNNING'
-        self.execution_started_at = timezone.now()
-        self.save()
-        print(f"Pipeline {self.name} execution started - status changed to RUNNING")
-        
-        # Here you would trigger the actual pipeline execution
-        # For now, we'll just mark it as started
-        return True
-    
-    def mark_completed(self):
+        try:
+            # Import here to avoid circular imports
+            from .tasks import process_pipeline
+            
+            # Trigger the Celery task
+            task = process_pipeline.delay(str(self.id))
+            self.celery_task_id = task.id
+            self.save()
+        except Exception as e:
+            error_msg = f"Failed to trigger Celery task: {str(e)}"
+            logger.error(error_msg)
+            self.mark_failed(error_msg)
+
+ 
+    def mark_completed(self, result_data=None):
         """Mark pipeline as completed"""
         if self.status != 'RUNNING':
             raise ValidationError(f"Cannot complete pipeline - current status is {self.status}, must be RUNNING")
         
         self.status = 'COMPLETED'
         self.execution_completed_at = timezone.now()
+        if result_data:
+            self.result_data = result_data
         self.save()
-        print(f"Pipeline {self.name} completed successfully")
+        logger.info(f"Pipeline {self.name} completed successfully")
     
     def mark_failed(self, error_message=None):
         """Mark pipeline as failed"""
@@ -127,16 +130,34 @@ class MatchingPipeline(models.Model):
         if error_message:
             self.error_message = error_message
         self.save()
-        print(f"Pipeline {self.name} failed" + (f": {error_message}" if error_message else ""))
+        logger.info(f"Pipeline {self.name} failed" + (f": {error_message}" if error_message else ""))
     
-    def cancel(self):
+    def mark_cancel(self):
         """Cancel the pipeline"""
         if self.status in ['COMPLETED', 'FAILED']:
             raise ValidationError(f"Cannot cancel pipeline - current status is {self.status}")
         
         self.status = 'CANCELLED'
         self.save()
-        print(f"Pipeline {self.name} was cancelled")
+        logger.info(f"Pipeline {self.name} was cancelled")
+    
+    def get_task_status(self):
+        """Get the status of the associated Celery task"""
+        if not self.celery_task_id:
+            return None
+        
+        try:
+            from celery.result import AsyncResult
+            task_result = AsyncResult(self.celery_task_id)
+            return {
+                'task_id': self.celery_task_id,
+                'status': task_result.status,
+                'result': task_result.result if task_result.ready() else None,
+                'traceback': task_result.traceback if task_result.failed() else None
+            }
+        except Exception as e:
+            logger.error(f"Error getting task status: {str(e)}")
+            return None
     
     def clean(self):
         """Validate pipeline data"""
@@ -145,6 +166,30 @@ class MatchingPipeline(models.Model):
         
         if self.parties_accepted > self.total_parties:
             raise ValidationError("parties_accepted cannot exceed total parties")
+    
+    def _should_start_new_task(self):
+        """Check if we should start a new task (existing task is not running)"""
+        if not self.celery_task_id:
+            return True
+            
+        try:
+            from celery.result import AsyncResult
+            existing_task = AsyncResult(self.celery_task_id)
+            if existing_task.state in ['PENDING', 'RETRY', 'STARTED']:
+                return False  # Task is still running
+            elif existing_task.state in ['SUCCESS', 'FAILURE', 'REVOKED']:
+                # Clear the old task ID since it's done
+                self.celery_task_id = None
+                self.save()
+                return True  # Task is done, can start new one
+            else:
+                logger.warning(f"Unknown task state {existing_task.state}, will start new task")
+                return True
+        except Exception as e:
+            # Clear the problematic task ID
+            self.celery_task_id = None
+            self.save()
+            return True
     
     class Meta:
         verbose_name = 'Matching Pipeline'
