@@ -96,10 +96,10 @@ class MatchingPipeline(models.Model):
         
         try:
             # Import here to avoid circular imports
-            from .tasks import process_pipeline
+            from .tasks import multi_party_matching_pipeline
             
             # Trigger the Celery task
-            task = process_pipeline.delay(str(self.id))
+            task = multi_party_matching_pipeline.delay(str(self.id))
             self.celery_task_id = task.id
             self.save()
         except Exception as e:
@@ -122,15 +122,12 @@ class MatchingPipeline(models.Model):
     
     def mark_failed(self, error_message=None):
         """Mark pipeline as failed"""
-        if self.status not in ['RUNNING', 'READY']:
-            raise ValidationError(f"Cannot fail pipeline - current status is {self.status}")
-        
         self.status = 'FAILED'
         self.execution_completed_at = timezone.now()
         if error_message:
             self.error_message = error_message
         self.save()
-        logger.info(f"Pipeline {self.name} failed" + (f": {error_message}" if error_message else ""))
+        logger.warning(f"Pipeline {self.name} failed" + (f": {error_message}" if error_message else ""))
     
     def mark_cancel(self):
         """Cancel the pipeline"""
@@ -166,30 +163,7 @@ class MatchingPipeline(models.Model):
         
         if self.parties_accepted > self.total_parties:
             raise ValidationError("parties_accepted cannot exceed total parties")
-    
-    def _should_start_new_task(self):
-        """Check if we should start a new task (existing task is not running)"""
-        if not self.celery_task_id:
-            return True
-            
-        try:
-            from celery.result import AsyncResult
-            existing_task = AsyncResult(self.celery_task_id)
-            if existing_task.state in ['PENDING', 'RETRY', 'STARTED']:
-                return False  # Task is still running
-            elif existing_task.state in ['SUCCESS', 'FAILURE', 'REVOKED']:
-                # Clear the old task ID since it's done
-                self.celery_task_id = None
-                self.save()
-                return True  # Task is done, can start new one
-            else:
-                logger.warning(f"Unknown task state {existing_task.state}, will start new task")
-                return True
-        except Exception as e:
-            # Clear the problematic task ID
-            self.celery_task_id = None
-            self.save()
-            return True
+
     
     class Meta:
         verbose_name = 'Matching Pipeline'

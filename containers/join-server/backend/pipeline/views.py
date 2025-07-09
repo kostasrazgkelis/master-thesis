@@ -1,15 +1,20 @@
+import logging
 from rest_framework import generics, permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from django.contrib.auth import get_user_model
 from django.db import models
+from django.conf import settings
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.openapi import OpenApiTypes
 from .serializers import (
     MatchingPipelineSerializer, CreatePipelineSerializer, AcceptPipelineSerializer
 )
 from .models import MatchingPipeline, PipelineParty
+from .tasks import multi_party_matching_pipeline
 
+logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
@@ -117,7 +122,7 @@ class MatchingPipelineDetailView(generics.RetrieveUpdateDestroyAPIView):
         )
     ]
 )
-@api_view(['PUT'])
+@api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def accept_pipeline(request, pipeline_id):
     """
@@ -148,8 +153,7 @@ def accept_pipeline(request, pipeline_id):
             {'error': f'User {party.user.username} has already accepted this pipeline'}, 
             status=status.HTTP_400_BAD_REQUEST
         )
-    
-    # Validate and process file upload
+      # Validate and process file upload
     serializer = AcceptPipelineSerializer(instance=party, data=request.data)
     if serializer.is_valid():
         # This will call party.accept_and_upload(file) which:
@@ -161,8 +165,14 @@ def accept_pipeline(request, pipeline_id):
         
         # Refresh pipeline from database to get updated data
         pipeline.refresh_from_db()
+
+        # Check if all parties have accepted and trigger processing
+        if pipeline.all_parties_accepted and pipeline.status == 'READY':
+            task = multi_party_matching_pipeline.delay(str(pipeline.id))
+            pipeline.celery_task_id = task.id if task else None
+            pipeline.save()
+            pipeline.refresh_from_db()
         
-        # Return updated pipeline data
         pipeline_serializer = MatchingPipelineSerializer(pipeline)
         return Response(pipeline_serializer.data)
     
@@ -189,152 +199,8 @@ def get_user_pipelines(request):
     return Response({'pipelines': serializer.data})
 
 
-@extend_schema(
-    summary="Trigger pipeline processing manually",
-    description="""
-    Manually trigger pipeline processing. Pipeline must be in READY state and all parties must have accepted.
-    
-    **Query Parameters:**
-    - `force=true` - Force trigger even if there's an existing task running
-    
-    **Normal Flow:**
-    1. Upload files for all parties → Status becomes READY → Auto-triggers processing
-    2. If already READY → Can manually trigger with this endpoint
-    """,
-    parameters=[
-        OpenApiParameter(
-            name='pipeline_id',
-            description='Pipeline UUID',
-            required=True,
-            type=OpenApiTypes.UUID,
-            location=OpenApiParameter.PATH
-        ),
-        OpenApiParameter(
-            name='force',
-            description='Force trigger even if task already exists (true/false)',
-            required=False,
-            type=OpenApiTypes.BOOL,
-            location=OpenApiParameter.QUERY
-        )
-    ],
-    responses={
-        200: {
-            'type': 'object',
-            'properties': {
-                'message': {'type': 'string'},
-                'task_id': {'type': 'string'},
-                'pipeline_id': {'type': 'string'},
-                'status': {'type': 'string'},
-                'force_triggered': {'type': 'boolean'}
-            }
-        },
-        400: {
-            'type': 'object',
-            'properties': {
-                'error': {'type': 'string'}
-            },
-            'examples': {
-                'not_ready': {'error': 'Pipeline must be in READY state'},
-                'parties_not_accepted': {'error': 'Not all parties have accepted (2/3 accepted)'}
-            }
-        }
-    }
-)
-@api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
-def trigger_pipeline_processing(request, pipeline_id):
-    """
-    Manually trigger pipeline processing (mainly for testing).
-    In normal operation, this is triggered automatically when status changes to READY.
-    """
-    try:
-        pipeline = MatchingPipeline.objects.get(id=pipeline_id)
-    except MatchingPipeline.DoesNotExist:
-        return Response(
-            {'error': 'Pipeline not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
-    
-    # Check if user has access to this pipeline
-    user = request.user
-    if not (pipeline.parties.filter(user=user).exists()):
-        return Response(
-            {'error': 'Access denied'},
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
-    # Check if pipeline is in the right state
-    if pipeline.status != 'READY':
-        return Response(
-            {'error': f'Pipeline must be in READY state to trigger processing, current state: {pipeline.status}'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    # Check if all parties have accepted
-    if not pipeline.all_parties_accepted:
-        return Response(
-            {'error': f'Cannot trigger processing - not all parties have accepted and uploaded files ({pipeline.parties_accepted}/{pipeline.total_parties} accepted)'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-        
-    # Trigger processing
-    try:
-        pipeline.trigger_processing()
-        
-        # Refresh pipeline data
-        pipeline.refresh_from_db()
-        
-        return Response({
-            'message': 'Pipeline processing triggered successfully',
-            'task_id': pipeline.celery_task_id,
-            'pipeline_id': str(pipeline.id),
-            'status': pipeline.status
-            })
-    except Exception as e:
-        return Response(
-            {'error': f'Failed to trigger processing: {str(e)}'},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
 
 
-@extend_schema(
-    summary="Test Celery connection",
-    description="Test that Celery is working by running a simple task with UUID tracking",
-    responses={
-        200: {
-            'type': 'object',
-            'properties': {
-                'message': {'type': 'string'},
-                'task_id': {'type': 'string'},
-                'status': {'type': 'string'},
-                'check_result_url': {'type': 'string'}
-            }
-        }
-    }
-)
-@api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
-def test_celery(request):
-    """
-    Test Celery connection with a simple task that includes UUID tracking.
-    """
-    try:
-        from .tasks import test_celery_connection
-        
-        task = test_celery_connection.delay()
-        
-        return Response({
-            'message': 'Celery test task started successfully',
-            'task_id': task.id,
-            'status': 'Task queued and will include unique UUID',
-            'check_result_url': f'/api/pipelines/task-status/{task.id}/',
-            'info': 'The task will generate a unique UUID and process for 5 seconds'
-        })
-    except Exception as e:
-        return Response(
-            {'error': f'Failed to start Celery task: {str(e)}'},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
 
 
 @extend_schema(

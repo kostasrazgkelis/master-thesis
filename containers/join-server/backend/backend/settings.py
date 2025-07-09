@@ -207,11 +207,6 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
 CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes
 
-# Optional: Task routing (can be used for different queues)
-CELERY_TASK_ROUTES = {
-    'pipeline.tasks.process_pipeline': {'queue': 'pipeline'},
-}
-
 # Optional: Worker settings
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_ACKS_LATE = True

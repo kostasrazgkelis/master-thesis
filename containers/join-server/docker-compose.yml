@@ -37,10 +37,11 @@ services:
       - POSTGRES_PORT=5432
       - REDIS_URL=redis://redis:6379/0
       - PYTHONUNBUFFERED=1
+      - C_FORCE_ROOT=1
     depends_on:
       - db
       - redis
-    command: sh -c "cd /app/backend && watchmedo auto-restart --directory=./ --pattern='*.py' --recursive -- celery -A backend worker --loglevel=info --concurrency=2"
+    command: sh -c "cd /app/backend && python manage.py migrate && watchmedo auto-restart --directory=./ --pattern='*.py' --recursive --ignore-patterns='*.pyc;*/__pycache__/*' -- celery -A backend worker --loglevel=info --concurrency=2 --pool=solo"
 
   celery-beat:
     build: .

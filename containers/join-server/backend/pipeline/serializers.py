@@ -48,6 +48,7 @@ class MatchingPipelineSerializer(serializers.ModelSerializer):
     created_by = UserListSerializer(read_only=True)
     all_parties_accepted = serializers.BooleanField(read_only=True)
     total_parties = serializers.IntegerField(read_only=True)
+    task_status = serializers.SerializerMethodField()
     
     class Meta:
         model = MatchingPipeline
@@ -62,9 +63,14 @@ class MatchingPipelineSerializer(serializers.ModelSerializer):
             'updated_at',
             'created_by',
             'parties',
-            'all_parties_accepted'
+            'all_parties_accepted',
+            'task_status'
         ]
-        read_only_fields = ['created_at', 'updated_at', 'created_by', 'parties_accepted']
+
+    
+    def get_task_status(self, obj):
+        """Get Celery task status information"""
+        return obj.get_task_status()
 
 
 class CreatePipelineSerializer(serializers.ModelSerializer):
