@@ -15,21 +15,30 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
+from drf_spectacular.views import (
+    SpectacularAPIView,
+    SpectacularRedocView,
+    SpectacularSwaggerView,
+)
+
 from django.contrib import admin
-from django.urls import path, include
-from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
+from django.urls import include, path
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     # Authentication URLs for DRF browsable API and Swagger
-    path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
+    path("api-auth/", include("rest_framework.urls", namespace="rest_framework")),
     # API endpoints
-    path('api/', include('core.urls')),
-    path('api/pipelines/', include('pipeline.urls')),
+    path("api/", include("core.urls")),
+    path("api/pipelines/", include("pipeline.urls")),
     # API schema
-    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     # Swagger UI
-    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path(
+        "api/docs/",
+        SpectacularSwaggerView.as_view(url_name="schema"),
+        name="swagger-ui",
+    ),
     # ReDoc UI
-    path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+    path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
 ]
