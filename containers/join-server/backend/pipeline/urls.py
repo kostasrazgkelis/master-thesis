@@ -4,7 +4,8 @@ from .views import (
     MatchingPipelineDetailView,
     accept_pipeline,
     get_user_pipelines,
-    get_task_status
+    get_task_status,
+    test_spark
 )
 
 
@@ -15,5 +16,7 @@ urlpatterns = [
     path('<uuid:pipeline_id>/me/', accept_pipeline, name='pipeline-accept'),
 
     path('task-status/<str:task_id>/', get_task_status, name='task-status'),
+
+    path("test-spark/", test_spark, name='test-spark'),
 ]
 

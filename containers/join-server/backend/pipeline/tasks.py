@@ -7,8 +7,30 @@ from django.utils import timezone
 from pipeline.models import MatchingPipeline
 import logging
 
+from pyspark.sql import SparkSession
+
 logger = logging.getLogger(__name__)
 
+
+@shared_task
+def run_spark_job():
+    spark = (
+        SparkSession.builder
+        .appName(f"Pipeline-0")
+        .master("local[*]") 
+        .getOrCreate()
+    )
+
+    try:
+        # Example: create DataFrame
+        data = [("A", 1), ("B", 2), ("C", 3)]
+        df = spark.createDataFrame(data, ["name", "value"])
+
+        df_filtered = df.filter(df.value > 1)
+        df_filtered.show()
+
+    finally:
+        spark.stop()  
 
 @shared_task(bind=True)
 def multi_party_matching_pipeline(self, pipeline_id):

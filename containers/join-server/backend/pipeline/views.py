@@ -74,7 +74,6 @@ class MatchingPipelineDetailView(generics.RetrieveUpdateDestroyAPIView):
             models.Q(parties__user=user)
         ).distinct()
 
-
 @extend_schema(
     summary="Accept pipeline and upload file",
     description="Accept participation in a pipeline and upload data file. Supported formats: CSV, JSON, XLSX, Parquet, TXT (max 50MB)",
@@ -273,3 +272,22 @@ def get_task_status(request, task_id):
             {'error': f'Failed to get task status: {str(e)}'}, 
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+@api_view(['POST'])
+def test_spark(request):
+    """
+    Test Celery connection by running a simple task.
+    This is useful to verify that Celery is configured correctly.
+    """
+    try:
+        from pipeline.tasks import run_spark_job
+        
+        run_spark_job.delay()
+        
+        return Response(status=status.HTTP_202_ACCEPTED, 
+                data={"bravo": 1})
+
+    except Exception as e:
+        logger.error(f"Error testing Celery connection: {str(e)}")
+        return {'error': str(e)}
