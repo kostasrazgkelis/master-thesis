@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   join-server:
     build: .
@@ -7,7 +5,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - .:/app
+      - /mnt/c/Users/Onelity-krazgkelis/Documents/VSCode Projects/Thesis/containers/join-server:/app
     environment:
       - DJANGO_SETTINGS_MODULE=backend.settings
       - POSTGRES_DB=joinserver
@@ -22,6 +20,11 @@ services:
     depends_on:
       - db
       - redis
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
 
   celery-worker:
     build: .
@@ -70,6 +73,11 @@ services:
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
 
   db:
     image: postgres:15
@@ -82,6 +90,11 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
 
 volumes:
   postgres_data:

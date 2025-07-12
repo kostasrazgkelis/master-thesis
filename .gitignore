@@ -64,8 +64,7 @@ htmlcov/
 **/.ipynb_checkpoints/
 
 output/
-output/*
-
+participants/
 
 containers/**/*.csv
 
@@ -85,3 +84,4 @@ celery-results.sqlite
 # Celery worker files
 celeryd.pid
 *.pid
+

@@ -203,3 +203,30 @@ CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes
 # Optional: Worker settings
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_ACKS_LATE = True
+
+# Prevent Celery from restarting on failure
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+CELERY_WORKER_DISABLE_RATE_LIMITS = True
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 1  # Worker dies after 1 task
+CELERY_WORKER_POOL_RESTARTS = False
+CELERY_TASK_ALWAYS_EAGER = False  # Don't run tasks synchronously
+CELERY_TASK_STORE_EAGER_RESULT = False
+
+# Task retry settings - disable retries
+CELERY_TASK_RETRY_POLICY = {
+    "max_retries": 0,  # Never retry
+    "interval_start": 0,
+    "interval_step": 0,
+    "interval_max": 0,
+}
+
+# Task failure settings
+CELERY_TASK_IGNORE_RESULT = False
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_SEND_EVENTS = True
+CELERY_SEND_TASK_EVENTS = True
+
+# Worker failure settings
+CELERY_WORKER_SEND_TASK_EVENTS = True
+CELERY_WORKER_HIJACK_ROOT_LOGGER = False
+CELERY_WORKER_LOG_COLOR = False

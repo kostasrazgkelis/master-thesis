@@ -9,7 +9,7 @@ class TestDatasetEvaluator(unittest.TestCase):
 
     def test_normal_data(self):
         expected = {"gt": 5, "tp": 4, "fp": 2, "fn": 1}
-        
+
         # Data for df1
         data1 = [
             ["ID00005", "N039", "E298", "Q412", "V409", "R232"],  # TP1
@@ -71,9 +71,9 @@ class TestDatasetEvaluator(unittest.TestCase):
 
     def test_with_synthetic_data(self):
         expected = {"gt": 125, "tp": 93, "fp": 69, "fn": 32}
-        
-# The code snippet you provided is generating synthetic data for testing purposes. Here's a breakdown
-# of what it does:
+
+        # The code snippet you provided is generating synthetic data for testing purposes. Here's a breakdown
+        # of what it does:
         # Generate synthetic data
         generator = smd(
             size=500,
@@ -114,9 +114,15 @@ class TestDatasetEvaluator(unittest.TestCase):
         for df in [df1, df2]:
             for col_name in df.columns:
                 if col_name != 0:
-                    df[col_name] = df[col_name].apply(lambda x: jellyfish.soundex(str(x)))
+                    df[col_name] = df[col_name].apply(
+                        lambda x: jellyfish.soundex(str(x))
+                    )
 
-        pipeline = de(df1.sample(frac=0.01, random_state=42), df2.sample(frac=0.01, random_state=55), threshold=3)
+        pipeline = de(
+            df1.sample(frac=0.01, random_state=42),
+            df2.sample(frac=0.01, random_state=55),
+            threshold=3,
+        )
         pipeline.preprocess()
         pipeline.evaluate()
         pipeline.calculate_statistics()
@@ -131,6 +137,7 @@ class TestDatasetEvaluator(unittest.TestCase):
         self.assertEqual(
             pipeline.fn, expected["fn"], "False negatives do not match expected value"
         )
+
 
 if __name__ == "__main__":
     unittest.main()

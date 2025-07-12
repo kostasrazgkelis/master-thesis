@@ -15,22 +15,19 @@ class CustomUserAdmin(UserAdmin):
     """
     Admin configuration for CustomUser model.
     """
+
     # Add the custom fields to the admin interface
     fieldsets = UserAdmin.fieldsets + (
-        ('Additional Info', {
-            'fields': ('phone_number', 'date_of_birth', 'bio')
-        }),
+        ("Additional Info", {"fields": ("phone_number", "date_of_birth", "bio")}),
     )
-    
+
     # Add custom fields to the add user form
     add_fieldsets = UserAdmin.add_fieldsets + (
-        ('Additional Info', {
-            'fields': ('phone_number', 'date_of_birth', 'bio')
-        }),
+        ("Additional Info", {"fields": ("phone_number", "date_of_birth", "bio")}),
     )
-    
+
     # Display custom fields in the user list
-    list_display = UserAdmin.list_display + ('phone_number', 'date_of_birth')
-    
+    list_display = UserAdmin.list_display + ("phone_number", "date_of_birth")
+
     # Make custom fields searchable
-    search_fields = UserAdmin.search_fields + ('phone_number',)
+    search_fields = UserAdmin.search_fields + ("phone_number",)

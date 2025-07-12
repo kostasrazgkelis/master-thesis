@@ -7,6 +7,7 @@ class CustomUser(AbstractUser):
     Custom user model that extends Django's AbstractUser.
     You can add additional fields here as needed.
     """
+
     # Example additional fields (you can modify/remove these as needed)
     phone_number = models.CharField(max_length=15, blank=True, null=True)
     date_of_birth = models.DateField(blank=True, null=True)
@@ -14,7 +15,7 @@ class CustomUser(AbstractUser):
 
     def __str__(self):
         return self.username
-    
+
     class Meta:
-        verbose_name = 'User'
-        verbose_name_plural = 'Users'
+        verbose_name = "User"
+        verbose_name_plural = "Users"

@@ -6,6 +6,6 @@ services:
       - "8888:8888"
       - "4040:4040"
     volumes:
-      - ..:/home/jovyan/work
+      - .:/home/jovyan/work
     mem_limit: 4g   # Limit memory to 8 GB
     cpus: 3         # Limit CPU usage to 2 cores

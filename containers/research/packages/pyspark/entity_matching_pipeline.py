@@ -164,7 +164,9 @@ class MultiPartyRecordLinkage:
         )
 
         tp = tp_buckets.count()
-        fp = buckets.filter(~F.array_contains(F.col("assigned_entities"), F.col("bucket_id"))).count()
+        fp = buckets.filter(
+            ~F.array_contains(F.col("assigned_entities"), F.col("bucket_id"))
+        ).count()
         fn = gt_count - tp
 
         precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
