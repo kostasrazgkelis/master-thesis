@@ -105,6 +105,9 @@ class MatchingPipeline(models.Model):
             for party in self.parties.all()
         ]
 
+    def get_all_parties_id(self):
+        return (party.user.id for party in self.parties.all())
+
     def update_status(self):
         """Update pipeline status based on parties acceptance"""
 

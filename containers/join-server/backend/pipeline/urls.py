@@ -11,7 +11,7 @@ from .views import (
 )
 
 router = DefaultRouter()
-matched_data_create = MatchedDataViewSet.as_view({"post": "create"})
+
 
 urlpatterns = [
     path("", MatchingPipelineListCreateView.as_view(), name="pipeline-list-create"),
@@ -21,8 +21,20 @@ urlpatterns = [
     # Correct nested route for matched-data create
     path(
         "<uuid:pipeline_id>/me/matched-data/",
-        matched_data_create,
-        name="matched-data-create",
+        MatchedDataViewSet.as_view({"get": "list", "post": "create"}),
+        name="matched-data-list-create",
+    ),
+    path(
+        "<uuid:pipeline_id>/me/matched-data/<uuid:pk>/",
+        MatchedDataViewSet.as_view(
+            {
+                "get": "retrieve",
+                "put": "update",
+                "patch": "partial_update",
+                "delete": "destroy",
+            }
+        ),
+        name="matched-data-detail",
     ),
     path("task-status/<str:task_id>/", get_task_status, name="task-status"),
 ]

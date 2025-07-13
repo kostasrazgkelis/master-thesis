@@ -234,6 +234,7 @@ class MatchedDataSerializer(serializers.ModelSerializer):
             "updated_at",
             "status",
             "pipeline",
+            "folder_path",
         ]
 
     def validate_right_parties(self, right_parties: list):

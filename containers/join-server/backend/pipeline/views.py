@@ -1,7 +1,7 @@
 import logging
 from typing import override
 from webbrowser import get
-from rest_framework import generics, permissions, status, viewsets
+from rest_framework import generics, permissions, status, viewsets, serializers
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from django.contrib.auth import get_user_model
@@ -9,6 +9,7 @@ from django.db import models
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.openapi import OpenApiTypes
 from rest_framework.exceptions import NotFound
+import shutil
 
 from .serializers import (
     MatchedDataSerializer,
@@ -274,17 +275,91 @@ class MatchedDataViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         pipeline_id = self.kwargs.get("pipeline_id")
-        right_parties = self.request.data.get("right_parties")
+        right_parties = set(self.request.data.get("right_parties"))
+        active_user = self.request.user
+
+        if active_user.id in right_parties:
+            raise serializers.ValidationError("You cannot match with yourself.")
 
         try:
             pipeline = MatchingPipeline.objects.get(id=pipeline_id)
         except MatchingPipeline.DoesNotExist:
             raise NotFound("Pipeline not found.")
 
+        if not right_parties.issubset(pipeline.get_all_parties_id()):
+            raise serializers.ValidationError(
+                "One or more right_parties are not part of the pipeline."
+            )
+
+        existing_matches = MatchedData.objects.filter(
+            pipeline=pipeline, left_party=active_user
+        )
+
+        submitted_set = right_parties
+        for match in existing_matches:
+            existing_set = set(match.right_parties.values_list("id", flat=True))
+            if submitted_set == existing_set:
+                raise serializers.ValidationError(
+                    "Matched data already exists for this pipeline and parties."
+                )
+
         matched_data = serializer.save(
-            left_party=self.request.user, right_parties=right_parties, pipeline=pipeline
+            left_party=active_user, right_parties=right_parties, pipeline=pipeline
         )
 
         get_matched_data.delay(
             pipeline_id=matched_data.uuid,
         )
+
+    def list(self, request, *args, **kwargs):
+        """Override list method to add custom logic"""
+        queryset = self.filter_queryset(
+            self.get_queryset().filter(left_party=request.user)
+        )
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def retrieve(self, request, *args, **kwargs):
+        """
+        GET /pipelines/<pipeline_id>/me/matched-data/<matched_data_id>/
+        Retrieve a specific matched data record
+        """
+        try:
+            instance = self.get_object()
+
+            serializer = self.get_serializer(instance)
+            return Response(serializer.data)
+
+        except MatchedData.DoesNotExist:
+            raise NotFound("Matched data not found.")
+        except Exception as e:
+            logger.error(f"Error retrieving matched data: {str(e)}")
+            return Response(
+                {"error": "Failed to retrieve matched data"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        GET /pipelines/<pipeline_id>/me/matched-data/<matched_data_id>/
+        Retrieve a specific matched data record
+        """
+        try:
+            instance = self.get_object()
+            shutil.rmtree(instance.folder_path, ignore_errors=True)
+            instance.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except MatchedData.DoesNotExist:
+            raise NotFound("Matched data not found.")
+        except Exception as e:
+            logger.error(f"Error deleting matched data: {str(e)}")
+            return Response(
+                {"error": "Failed to delete matched data"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
