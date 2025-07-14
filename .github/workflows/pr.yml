@@ -28,6 +28,11 @@ jobs:
         with:
           poetry-version: 1.8.0
 
+      - name: Install system dependencies
+        run: |
+          apt-get update && \
+          apt-get install -y make build-essential
+
       - name: Install dependencies
         run: make install && make install-pre-commit
 
