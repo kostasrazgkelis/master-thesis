@@ -1,0 +1,37 @@
+name: Quallity Assurance
+on: [pull_request, workflow_call]
+
+jobs:
+  qa:
+    name: qa
+    runs-on: ubuntu-latest
+    container: python:3.13.5-slim
+
+    services:
+      db:
+        image: postgres:15
+        env:
+          POSTGRES_DB: joinserver
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        volumes:
+          - postgres_data:/var/lib/postgresql/data
+        ports:
+          - "5432:5432"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Poetry
+        uses: abatilo/actions-poetry@v2
+        with:
+          poetry-version: 1.8.0
+
+      - name: Install dependencies
+        run: make install && make install-pre-commit
+
+      - name: Lint
+        run: make lint
+
+      
