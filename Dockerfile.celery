@@ -2,6 +2,11 @@ FROM python:3.13.5-slim
 
 WORKDIR /app
 
+
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+
 # Install system dependencies for PostgreSQL
 RUN apt-get update && apt-get install -y \
     libpq-dev \
@@ -17,16 +22,8 @@ ENV PATH="$JAVA_HOME/bin:$PATH"
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-
 # Copy application code
 COPY . .
 
 # Change to backend directory where manage.py is located
 WORKDIR /app/backend
-
-
-# CMD ["python", "-Xfrozen_modules=off", "-m", "debugpy", "--listen", "0.0.0.0:5678", "--wait-for-client", "manage.py", "runserver", "0.0.0.0:8000"]
-
-
-# Run Django development server
-CMD ["sh", "-c", "python manage.py makemigrations core && python manage.py makemigrations pipeline && python manage.py migrate && python manage.py create_superuser_if_debug && python manage.py runserver 0.0.0.0:8000"]
