@@ -26,8 +26,8 @@ jobs:
       - name: Install system dependencies
         run: |
           apt-get update
-          apt-get install -y make gcc libpq-dev curl
-          
+          apt-get install -y make gcc libpq-dev git curl
+
       - name: Set up Poetry
         uses: abatilo/actions-poetry@v2
         with:
