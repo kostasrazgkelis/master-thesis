@@ -1,9 +1,10 @@
+import logging
 import uuid
-from django.db import models
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.db import models
 from django.utils import timezone
-import logging
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -119,7 +120,6 @@ class MatchingPipeline(models.Model):
             return
 
     def trigger_processing(self):
-
         try:
             # Import here to avoid circular imports
             from .tasks import multi_party_matching_pipeline

@@ -1,28 +1,24 @@
-import os
 import logging
-
-from django.db import transaction
-from django.conf import settings
-from django.utils import timezone
+import os
+from functools import reduce
+from itertools import combinations
 
 from celery import shared_task
-
+from django.conf import settings
+from django.db import transaction
+from django.utils import timezone
 from pipeline.models import MatchedData, MatchingPipeline
-
-from itertools import combinations
-from functools import reduce
-
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
-    expr,
-    explode,
-    lit,
     col,
-    concat_ws,
-    struct,
     collect_list,
-    size,
+    concat_ws,
+    explode,
+    expr,
+    lit,
     monotonically_increasing_id,
+    size,
+    struct,
 )
 
 logger = logging.getLogger(__name__)
@@ -31,12 +27,10 @@ COLUMNS = ["_c1", "_c2", "_c3", "_c4", "_c5"]
 
 @shared_task(bind=True, autoretry_for=(), retry_kwargs={"max_retries": 0})
 def multi_party_matching_pipeline(self, pipeline_id):
-
     # TODO this will be updated for the actual mathcing alogirthm with spark
     pipeline = None
 
     try:
-
         with transaction.atomic():
             pipeline = MatchingPipeline.objects.select_for_update().get(id=pipeline_id)
 

@@ -15,6 +15,7 @@ RUN set -xe && \
     gcc \
     curl \
     git \
+    python3-distutils \
     && pip install virtualenvwrapper "poetry==$POETRY_VERSION" \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 

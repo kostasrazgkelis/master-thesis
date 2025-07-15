@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("pipeline", "0004_rename_right_partes_matcheddata_right_parties"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),

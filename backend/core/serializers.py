@@ -1,5 +1,5 @@
+from django.contrib.auth import authenticate, get_user_model
 from rest_framework import serializers
-from django.contrib.auth import get_user_model, authenticate, authenticate
 
 User = get_user_model()
 
@@ -92,5 +92,3 @@ class LogoutSerializer(serializers.Serializer):
     """
     Serializer for user logout.
     """
-
-    pass

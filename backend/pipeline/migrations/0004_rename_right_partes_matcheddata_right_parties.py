@@ -4,7 +4,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("pipeline", "0003_matchingpipeline_output_struct_matcheddata"),
     ]

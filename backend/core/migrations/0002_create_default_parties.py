@@ -1,7 +1,7 @@
 # Generated manually for creating default parties
 
-from django.db import migrations
 from django.contrib.auth import get_user_model
+from django.db import migrations
 
 
 def create_default_parties(apps, schema_editor):
@@ -77,7 +77,6 @@ def reverse_create_default_parties(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("core", "0001_initial"),
     ]

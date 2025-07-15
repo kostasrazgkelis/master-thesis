@@ -1,7 +1,8 @@
 from django.urls import path
+
 from .views import (
-    UserListView,
     UserDetailView,
+    UserListView,
     current_user_view,
     login_view,
     logout_view,

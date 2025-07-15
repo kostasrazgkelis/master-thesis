@@ -4,20 +4,28 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('pipeline', '0001_initial'),
+        ("pipeline", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='matchingpipeline',
-            name='celery_task_id',
-            field=models.CharField(blank=True, help_text='Celery task ID for tracking', max_length=255, null=True),
+            model_name="matchingpipeline",
+            name="celery_task_id",
+            field=models.CharField(
+                blank=True,
+                help_text="Celery task ID for tracking",
+                max_length=255,
+                null=True,
+            ),
         ),
         migrations.AddField(
-            model_name='matchingpipeline',
-            name='result_data',
-            field=models.JSONField(blank=True, help_text='JSON result data from pipeline execution', null=True),
+            model_name="matchingpipeline",
+            name="result_data",
+            field=models.JSONField(
+                blank=True,
+                help_text="JSON result data from pipeline execution",
+                null=True,
+            ),
         ),
     ]

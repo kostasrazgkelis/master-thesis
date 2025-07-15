@@ -1,25 +1,24 @@
 import logging
-from typing import override
-from webbrowser import get
-from rest_framework import generics, permissions, status, viewsets, serializers
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.response import Response
-from django.contrib.auth import get_user_model
-from django.db import models
-from drf_spectacular.utils import extend_schema, OpenApiParameter
-from drf_spectacular.openapi import OpenApiTypes
-from rest_framework.exceptions import NotFound
 import shutil
 
+from django.contrib.auth import get_user_model
+from django.db import models
+from drf_spectacular.openapi import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework import generics, permissions, serializers, status, viewsets
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import NotFound
+from rest_framework.response import Response
+
+from .models import MatchedData, MatchingPipeline, PipelineParty
 from .serializers import (
+    AcceptPipelineSerializer,
+    CreatePipelineSerializer,
     MatchedDataSerializer,
     MatchingPipelineSerializer,
-    CreatePipelineSerializer,
-    AcceptPipelineSerializer,
 )
-from .models import MatchedData, MatchingPipeline, PipelineParty
-from .tasks import get_matched_data, multi_party_matching_pipeline
-
+from .tasks import get_matched_data as get_matched_data_task
+from .tasks import multi_party_matching_pipeline
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -307,7 +306,7 @@ class MatchedDataViewSet(viewsets.ModelViewSet):
             left_party=active_user, right_parties=right_parties, pipeline=pipeline
         )
 
-        get_matched_data.delay(
+        get_matched_data_task.delay(
             pipeline_id=matched_data.uuid,
         )
 
