@@ -66,8 +66,7 @@ htmlcov/
 output/
 participants/
 
-_containers/**/*.csv
-
+containers_depr/
 
 *-shm
 
