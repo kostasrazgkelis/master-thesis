@@ -146,7 +146,7 @@ def multi_party_matching_pipeline(self, pipeline_id):
 
 
 @shared_task(bind=True, autoretry_for=(), retry_kwargs={"max_retries": 0})
-def get_matched_data(self, pipeline_id):
+def get_matched_data(self, pipeline_id):  # noqa: C901
     spark = None
     matched_data = None
 
