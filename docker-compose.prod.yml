@@ -1,64 +1,82 @@
 services:
   backend:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
     restart: unless-stopped
     ports:
       - "8000:8000"
     volumes:
       - .:/app
     environment:
-      - DJANGO_SETTINGS_MODULE=backend.settings
-      - POSTGRES_DB=joinserver
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_HOST=db
-      - POSTGRES_PORT=5432
-      - REDIS_URL=redis://redis:6379/0
-      - DJANGO_SUPERUSER_USERNAME=admin
-      - DJANGO_SUPERUSER_EMAIL=admin@example.com
-      - DJANGO_SUPERUSER_PASSWORD=admin123
+      - DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - REDIS_URL=${REDIS_URL}
+      - DJANGO_SUPERUSER_USERNAME=${DJANGO_SUPERUSER_USERNAME}
+      - DJANGO_SUPERUSER_EMAIL=${DJANGO_SUPERUSER_EMAIL}
+      - DJANGO_SUPERUSER_PASSWORD=${DJANGO_SUPERUSER_PASSWORD}
+      - DEBUG=${DEBUG}
+    env_file:
+      - .env
+    command: >
+        sh -c "scripts/entrypoint.sh && poetry run gunicorn backend.wsgi:application --bind 0.0.0.0:8000 --workers 2"
+    # command: sleep infinity
+    # tty: true
     depends_on:
       - db
       - redis
 
   celery-worker:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.celery
     restart: unless-stopped
     volumes:
       - .:/app
     environment:
-      - DJANGO_SETTINGS_MODULE=backend.settings
-      - POSTGRES_DB=joinserver
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_HOST=db
-      - POSTGRES_PORT=5432
-      - REDIS_URL=redis://redis:6379/0
+      - DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - REDIS_URL=${REDIS_URL}
       - PYTHONUNBUFFERED=1
       - C_FORCE_ROOT=1
+    env_file:
+      - .env
     depends_on:
       - db
       - redis
-    command: sh -c "cd /app/backend && python manage.py migrate && watchmedo auto-restart --directory=./ --pattern='*.py' --recursive --ignore-patterns='*.pyc;*/__pycache__/*' -- celery -A backend worker --loglevel=info --concurrency=2 --pool=solo"
+      - backend
+    command: sh -c "celery -A backend worker --loglevel=info --concurrency=2"
 
   celery-beat:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
     restart: unless-stopped
     volumes:
       - .:/app
     environment:
-      - DJANGO_SETTINGS_MODULE=backend.settings
-      - POSTGRES_DB=joinserver
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_HOST=db
-      - POSTGRES_PORT=5432
-      - REDIS_URL=redis://redis:6379/0
+      - DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - REDIS_URL=${REDIS_URL}
       - PYTHONUNBUFFERED=1
+    env_file:
+      - .env
     depends_on:
       - db
       - redis
-    command: sh -c "cd /app/backend && watchmedo auto-restart --directory=./ --pattern='*.py' --recursive --ignore-patterns='*.pyc;*/__pycache__/*' -- celery -A backend beat --loglevel=info"
+    command: sh -c "celery -A backend beat --loglevel=info"
 
   redis:
     image: redis:7-alpine
@@ -68,28 +86,20 @@ services:
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
-    deploy:
-      resources:
-        limits:
-          cpus: "0.25"
-          memory: 256M
+
 
   db:
     image: postgres:15
     restart: unless-stopped
     environment:
-      - POSTGRES_DB=joinserver
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512M
+
 
 volumes:
   postgres_data:

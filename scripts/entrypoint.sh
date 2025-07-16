@@ -12,8 +12,7 @@ done
 
 echo "Postgres is up - continuing..."
 
-poetry run python manage.py makemigrations core
-poetry run python manage.py makemigrations pipeline
-poetry run python manage.py migrate
-poetry run python manage.py create_superuser_if_debug
-poetry run python manage.py runserver 0.0.0.0:8000
+poetry run python backend/manage.py makemigrations core
+poetry run python backend/manage.py makemigrations pipeline
+poetry run python backend/manage.py migrate
+poetry run python backend/manage.py create_superuser_if_debug

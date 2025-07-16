@@ -1,0 +1,56 @@
+# Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# Python packaging
+*.egg-info/
+.eggs/
+
+# Testing and coverage
+htmlcov/
+.tox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.pytest_cache/
+
+# Logs
+*.log
+
+# IDE and editor folders
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose.yml
+*.db
+
+# Node/npm/yarn
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build and dist
+build/
+dist/
+
+# Secrets or envs
+.env
+.env.*
+
+# System
+.DS_Store
+Thumbs.db

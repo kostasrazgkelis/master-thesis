@@ -24,9 +24,4 @@ RUN poetry install --no-root
 
 COPY . .
 
-WORKDIR /app/backend
-
-COPY scripts/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-ENTRYPOINT ["/entrypoint.sh"]
+RUN chmod +x scripts/entrypoint.sh
