@@ -38,4 +38,4 @@ jobs:
           END
       - name: Run deploy
         run: |
-          ssh target "cd Thesis/ && docker-compose down && git pull && docker compose -f docker-compose.prod.yml up --build --force-recreate"
+          ssh target "cd master-thesis/ && docker-compose down && git pull && docker compose -f docker-compose.prod.yml up --build --force-recreate"
