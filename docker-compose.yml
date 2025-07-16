@@ -35,51 +35,51 @@ services:
           cpus: "0.5"
           memory: 1G
 
-  # celery-worker:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile.celery
-  #   restart: unless-stopped
-  #   volumes:
-  #     - .:/app
-  #   environment:
-  #     - DJANGO_SETTINGS_MODULE=backend.settings
-  #     - POSTGRES_DB=joinserver
-  #     - POSTGRES_USER=postgres
-  #     - POSTGRES_PASSWORD=postgres
-  #     - POSTGRES_HOST=db
-  #     - POSTGRES_PORT=5432
-  #     - REDIS_URL=redis://redis:6379/0
-  #     - PYTHONUNBUFFERED=1
-  #     - C_FORCE_ROOT=1
-  #   env_file:
-  #     - .env.local
-  #   depends_on:
-  #     - db
-  #     - redis
-  #     - backend
-  #   command: sh -c "cd /app/backend && celery -A backend worker --loglevel=info --concurrency=2"
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.celery
+    restart: unless-stopped
+    volumes:
+      - .:/app
+    environment:
+      - DJANGO_SETTINGS_MODULE=backend.settings
+      - POSTGRES_DB=joinserver
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+      - PYTHONUNBUFFERED=1
+      - C_FORCE_ROOT=1
+    env_file:
+      - .env.local
+    depends_on:
+      - db
+      - redis
+      - backend
+    command: sh -c "cd /app/backend && celery -A backend worker --loglevel=info --concurrency=2"
 
-  # celery-beat:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile.backend
-  #   restart: unless-stopped
-  #   volumes:
-  #     - .:/app
-  #   environment:
-  #     - DJANGO_SETTINGS_MODULE=backend.settings
-  #     - POSTGRES_DB=joinserver
-  #     - POSTGRES_USER=postgres
-  #     - POSTGRES_PASSWORD=postgres
-  #     - POSTGRES_HOST=db
-  #     - POSTGRES_PORT=5432
-  #     - REDIS_URL=redis://redis:6379/0
-  #     - PYTHONUNBUFFERED=1
-  #   depends_on:
-  #     - db
-  #     - redis
-  #   command: sh -c "cd /app/backend && watchmedo auto-restart --directory=./ --pattern='*.py' --recursive --ignore-patterns='*.pyc;*/__pycache__/*' -- celery -A backend beat --loglevel=info"
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    restart: unless-stopped
+    volumes:
+      - .:/app
+    environment:
+      - DJANGO_SETTINGS_MODULE=backend.settings
+      - POSTGRES_DB=joinserver
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - db
+      - redis
+    command: sh -c "cd /app/backend && watchmedo auto-restart --directory=./ --pattern='*.py' --recursive --ignore-patterns='*.pyc;*/__pycache__/*' -- celery -A backend beat --loglevel=info"
 
   redis:
     image: redis:7-alpine
