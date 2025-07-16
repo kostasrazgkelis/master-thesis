@@ -66,14 +66,15 @@ htmlcov/
 output/
 participants/
 
-containers/**/*.csv
-
+containers_depr/
 
 *-shm
 
 # Celery beat schedule files
 celerybeat-schedule
 celerybeat-schedule.*
+celerybeat-schedule*
+
 celerybeat.pid
 celery.pid
 
@@ -84,4 +85,3 @@ celery-results.sqlite
 # Celery worker files
 celeryd.pid
 *.pid
-

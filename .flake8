@@ -1,0 +1,48 @@
+[flake8]
+max-line-length = 100
+max-doc-length = 100
+max-complexity = 12
+select = B,C,E,F,W,T4,B9
+ignore =
+    # E203: whitespace before ':' (conflicts with Black)
+    E203,
+    # E501: line too long (Black handles this)
+    E501,
+    # W503: line break before binary operator (conflicts with Black)
+    W503,
+    # E722: do not use bare except (sometimes necessary)
+    E722,
+    # B008: Do not perform function calls in argument defaults
+    B008
+
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    .eggs,
+    *.egg,
+    dist,
+    build,
+    docs,
+    .tox,
+    .coverage,
+    .coverage.*,
+    coverage.xml,
+    *.cover,
+    *.log,
+    .gitignore,
+    .mypy_cache,
+    .pytest_cache,
+    .hypothesis,
+    migrations
+
+per-file-ignores =
+    # Allow star imports in __init__.py files
+    __init__.py:F401,F403
+    # Allow unused imports in settings files
+    settings.py:F401
+    # Allow long lines in migrations
+    migrations/*.py:E501
+
+# Docstring and import checking
+doctests = True
