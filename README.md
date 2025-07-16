@@ -23,7 +23,7 @@ spark = SparkSession.builder.appName("EntityMatching").getOrCreate()
 
 # Load datasets
 df1 = spark.read.csv("data/df1.csv", header=False).toDF("0", "1", "2", "3", "4", "5")
-df2 = spark.read.csv("data/df2.csv", header=False).toDF("0", "1", "2", "3", "4", "5") 
+df2 = spark.read.csv("data/df2.csv", header=False).toDF("0", "1", "2", "3", "4", "5")
 df3 = spark.read.csv("data/df3.csv", header=False).toDF("0", "1", "2", "3", "4", "5")
 
 # Execute entity matching
@@ -47,7 +47,7 @@ print(f"Recall: {metrics['recall']:.4f}")
 Entity resolution is a fundamental challenge in data integration and master data management. Common scenarios include:
 
 - **Customer Data Integration**: Merging customer records from different business systems
-- **Academic Research**: Linking publications and authors across bibliographic databases  
+- **Academic Research**: Linking publications and authors across bibliographic databases
 - **Healthcare**: Patient record matching across hospital systems
 - **E-commerce**: Product catalog deduplication and matching
 - **Compliance**: Entity matching against watchlists and regulatory databases
@@ -157,7 +157,7 @@ spark = SparkSession.builder.appName("EntityMatching").getOrCreate()
 
 # Load datasets
 df1 = spark.read.csv("data/df1.csv", header=False).toDF("0", "1", "2", "3", "4", "5")
-df2 = spark.read.csv("data/df2.csv", header=False).toDF("0", "1", "2", "3", "4", "5") 
+df2 = spark.read.csv("data/df2.csv", header=False).toDF("0", "1", "2", "3", "4", "5")
 df3 = spark.read.csv("data/df3.csv", header=False).toDF("0", "1", "2", "3", "4", "5")
 
 # Execute entity matching
@@ -181,7 +181,7 @@ print(f"Recall: {metrics['recall']:.4f}")
 Entity resolution is a fundamental challenge in data integration and master data management. Common scenarios include:
 
 - **Customer Data Integration**: Merging customer records from different business systems
-- **Academic Research**: Linking publications and authors across bibliographic databases  
+- **Academic Research**: Linking publications and authors across bibliographic databases
 - **Healthcare**: Patient record matching across hospital systems
 - **E-commerce**: Product catalog deduplication and matching
 - **Compliance**: Entity matching against watchlists and regulatory databases
@@ -271,7 +271,7 @@ Thesis/
 
 7. **Vortex PySpark Pipeline Proposal**
     ![Data Architecture](docs/pipelines/hashed_vortex_proposal_architecture.png)
-    There is another variation of the multiparty record linkage (MRL) solution where we build a vortex that will store the total data in an indexed structure. This should 
+    There is another variation of the multiparty record linkage (MRL) solution where we build a vortex that will store the total data in an indexed structure. This should
     reduce complexity of the system, caching the MRL hashed data and be used later when requested by any party.
 
 
@@ -447,7 +447,7 @@ buckets, metrics = run_entity_matching(
 
 **Evaluation Metrics**:
 - **Precision**: TP / (TP + FP) - Proportion of identified matches that are correct
-- **Recall**: TP / (TP + FN) - Proportion of actual matches that were identified  
+- **Recall**: TP / (TP + FN) - Proportion of actual matches that were identified
 - **F1-Score**: Harmonic mean of precision and recall - Overall matching quality
 - **Ground Truth**: Number of actual matching pairs in the dataset
 
@@ -612,7 +612,7 @@ buckets, metrics = run_entity_matching(
 
 **Evaluation Metrics**:
 - **Precision**: TP / (TP + FP) - Proportion of identified matches that are correct
-- **Recall**: TP / (TP + FN) - Proportion of actual matches that were identified  
+- **Recall**: TP / (TP + FN) - Proportion of actual matches that were identified
 - **F1-Score**: Harmonic mean of precision and recall - Overall matching quality
 - **Ground Truth**: Number of actual matching pairs in the dataset
 
@@ -716,7 +716,7 @@ This disclosure is provided in the interest of academic transparency and reflect
 
 **Author**: Konstantinos Razgkelis
 **Institution**: Aristotle University of Thessaloniki
-**Degree Program**: Master's Thesis Project  
+**Degree Program**: Master's Thesis Project
 **Year**: 2025
 
 
@@ -772,7 +772,5 @@ This disclosure is provided in the interest of academic transparency and reflect
 
 **Author**: Konstantinos Razgkelis
 **Institution**: Aristotle University of Thessaloniki
-**Degree Program**: Master's Thesis Project  
+**Degree Program**: Master's Thesis Project
 **Year**: 2025
-
-

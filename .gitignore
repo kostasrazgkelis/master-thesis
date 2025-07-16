@@ -64,4 +64,24 @@ htmlcov/
 **/.ipynb_checkpoints/
 
 output/
-output/*
+participants/
+
+containers_depr/
+
+*-shm
+
+# Celery beat schedule files
+celerybeat-schedule
+celerybeat-schedule.*
+celerybeat-schedule*
+
+celerybeat.pid
+celery.pid
+
+# Celery result backend files
+celerydb.sqlite
+celery-results.sqlite
+
+# Celery worker files
+celeryd.pid
+*.pid
