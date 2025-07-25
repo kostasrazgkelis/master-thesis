@@ -230,3 +230,32 @@ CELERY_SEND_TASK_EVENTS = True
 CELERY_WORKER_SEND_TASK_EVENTS = True
 CELERY_WORKER_HIJACK_ROOT_LOGGER = False
 CELERY_WORKER_LOG_COLOR = False
+
+# Spark configuration
+SPARK_CONFIG = {
+    "master": "local[*]",
+    "configs": {
+        # Tungsten engine
+        "spark.sql.tungsten.enabled": "true",
+        "spark.sql.codegen.wholeStage": "true",
+        "spark.sql.codegen.factoryMode": "CODEGEN_ONLY",
+        "spark.sql.adaptive.enabled": "true",
+        "spark.sql.adaptive.coalescePartitions.enabled": "true",
+        "spark.sql.adaptive.advisoryPartitionSizeInBytes": "64MB",
+        "spark.sql.adaptive.skewJoin.enabled": "true",
+        "spark.sql.adaptive.localShuffleReader.enabled": "true",
+        # Memory management
+        "spark.executor.memory": "2g",
+        "spark.driver.memory": "2g",
+        "spark.executor.memoryFraction": "0.8",
+        "spark.sql.shuffle.partitions": "200",
+        # Off-heap memory & serialization
+        "spark.sql.columnVector.offheap.enabled": "true",
+        "spark.serializer": "org.apache.spark.serializer.KryoSerializer",
+        "spark.kryo.unsafe": "true",
+        # Vectorized execution
+        "spark.sql.execution.arrow.pyspark.enabled": "true",
+        "spark.sql.parquet.enableVectorizedReader": "true",
+        "spark.sql.orc.enableVectorizedReader": "true",
+    },
+}

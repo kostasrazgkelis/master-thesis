@@ -7,7 +7,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ${DIR_PATH}:/app
+      - .:/app
     environment:
       - DJANGO_SETTINGS_MODULE=backend.settings
       - POSTGRES_DB=${POSTGRES_DB}
@@ -23,7 +23,7 @@ services:
     env_file:
       - .env.local
     command: >
-      sh -c "echo "PYTHONPATH=$(pwd)" >> .env && scripts/entrypoint.sh && poetry run python backend/manage.py runserver 0.0.0.0:8000"
+      sh -c "scripts/entrypoint.sh && poetry run python backend/manage.py runserver 0.0.0.0:8000"
     # command: sleep infinity
     # tty: true
     depends_on:

@@ -8,7 +8,6 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from pipeline.models import MatchedData, MatchingPipeline
-from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
     col,
     collect_list,
@@ -20,6 +19,8 @@ from pyspark.sql.functions import (
     size,
     struct,
 )
+
+from backend.utils.spark import get_spark_session
 
 logger = logging.getLogger(__name__)
 COLUMNS = ["_c1", "_c2", "_c3", "_c4", "_c5"]
@@ -41,33 +42,7 @@ def multi_party_matching_pipeline(self, pipeline_id):
         if len(pipeline.match_columns) != len(COLUMNS):
             raise ValueError("Mismatch between pipeline.match_columns and COLUMNS")
 
-        spark = (
-            SparkSession.builder.appName(f"MatchedData-{pipeline_id}")
-            .master("local[*]")
-            # Tungsten engine configurations
-            .config("spark.sql.tungsten.enabled", "true")
-            .config("spark.sql.codegen.wholeStage", "true")
-            .config("spark.sql.codegen.factoryMode", "CODEGEN_ONLY")
-            .config("spark.sql.adaptive.enabled", "true")
-            .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
-            .config("spark.sql.adaptive.advisoryPartitionSizeInBytes", "64MB")
-            .config("spark.sql.adaptive.skewJoin.enabled", "true")
-            .config("spark.sql.adaptive.localShuffleReader.enabled", "true")
-            # Memory management
-            .config("spark.executor.memory", "2g")
-            .config("spark.driver.memory", "2g")
-            .config("spark.executor.memoryFraction", "0.8")
-            .config("spark.sql.shuffle.partitions", "200")
-            # Tungsten off-heap memory
-            .config("spark.sql.columnVector.offheap.enabled", "true")
-            .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-            .config("spark.kryo.unsafe", "true")
-            # Vectorized execution
-            .config("spark.sql.execution.arrow.pyspark.enabled", "true")
-            .config("spark.sql.parquet.enableVectorizedReader", "true")
-            .config("spark.sql.orc.enableVectorizedReader", "true")
-            .getOrCreate()
-        )
+        spark = get_spark_session("MatchedData", pipeline_id)
 
         parties = pipeline.get_parties_status()
 
@@ -155,33 +130,7 @@ def get_matched_data(self, pipeline_id):  # noqa: C901
             uuid=pipeline_id
         )  # Changed from uuid to id
 
-        spark = (
-            SparkSession.builder.appName(f"MatchedData-{pipeline_id}")
-            .master("local[*]")
-            # Tungsten engine configurations
-            .config("spark.sql.tungsten.enabled", "true")
-            .config("spark.sql.codegen.wholeStage", "true")
-            .config("spark.sql.codegen.factoryMode", "CODEGEN_ONLY")
-            .config("spark.sql.adaptive.enabled", "true")
-            .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
-            .config("spark.sql.adaptive.advisoryPartitionSizeInBytes", "64MB")
-            .config("spark.sql.adaptive.skewJoin.enabled", "true")
-            .config("spark.sql.adaptive.localShuffleReader.enabled", "true")
-            # Memory management
-            .config("spark.executor.memory", "2g")
-            .config("spark.driver.memory", "2g")
-            .config("spark.executor.memoryFraction", "0.8")
-            .config("spark.sql.shuffle.partitions", "200")
-            # Tungsten off-heap memory
-            .config("spark.sql.columnVector.offheap.enabled", "true")
-            .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-            .config("spark.kryo.unsafe", "true")
-            # Vectorized execution
-            .config("spark.sql.execution.arrow.pyspark.enabled", "true")
-            .config("spark.sql.parquet.enableVectorizedReader", "true")
-            .config("spark.sql.orc.enableVectorizedReader", "true")
-            .getOrCreate()
-        )
+        spark = get_spark_session("GetMatchedData", pipeline_id)
 
         multi_party_pipeline = matched_data.pipeline
 

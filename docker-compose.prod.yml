@@ -23,9 +23,9 @@ services:
     env_file:
       - .env
     command: >
-        sh -c "scripts/entrypoint.sh && poetry run gunicorn backend.wsgi:application --bind 0.0.0.0:8000 --workers 2"
+        sh -c ". scripts/entrypoint.sh && cd backend && poetry run gunicorn backend.wsgi:application --bind 0.0.0.0:8000 --workers 2"
     # command: sleep infinity
-    # tty: true
+    tty: true
     depends_on:
       - db
       - redis
@@ -76,7 +76,7 @@ services:
     depends_on:
       - db
       - redis
-    command: sh -c "celery -A backend beat --loglevel=info"
+    command: sh -c "cd backend && celery -A backend beat --loglevel=info"
 
   redis:
     image: redis:7-alpine
