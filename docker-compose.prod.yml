@@ -26,6 +26,7 @@ services:
         sh -c ". scripts/entrypoint.sh && cd backend && poetry run gunicorn backend.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 300"
     # command: sleep infinity
     tty: true
+    mem_limit: 512m
     depends_on:
       - db
       - redis
@@ -53,6 +54,7 @@ services:
       - db
       - redis
       - backend
+    mem_limit: 4g
     command: sh -c "celery -A backend worker --loglevel=info --concurrency=2"
 
   celery-beat:
@@ -76,6 +78,7 @@ services:
     depends_on:
       - db
       - redis
+    mem_limit: 512m
     command: sh -c "cd backend && celery -A backend beat --loglevel=info"
 
   redis:
@@ -85,6 +88,7 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    mem_limit: 128m
     command: redis-server --appendonly yes
 
 
@@ -97,6 +101,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    mem_limit: 256m
     ports:
       - "5432:5432"
 

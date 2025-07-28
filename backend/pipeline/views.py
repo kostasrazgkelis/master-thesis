@@ -1,8 +1,10 @@
 import logging
 import shutil
 
+from celery.result import AsyncResult
 from django.contrib.auth import get_user_model
 from django.db import models
+from django.http import Http404
 from drf_spectacular.openapi import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics, permissions, serializers, status, viewsets
@@ -22,6 +24,14 @@ from .tasks import multi_party_matching_pipeline
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
+
+
+def is_pipeline_task_running(pipeline_id):
+    pipeline = MatchingPipeline.objects.get(id=pipeline_id)
+    if pipeline.celery_task_id:
+        result = AsyncResult(pipeline.celery_task_id)
+        return result.state in ("PENDING", "STARTED")
+    return False
 
 
 class MatchingPipelineListCreateView(generics.ListCreateAPIView):
@@ -74,7 +84,6 @@ class MatchingPipelineDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # Only allow access to pipelines where user is creator or party
         user = self.request.user
         return MatchingPipeline.objects.filter(
             models.Q(created_by=user) | models.Q(parties__user=user)
@@ -161,9 +170,10 @@ def accept_pipeline(request, pipeline_id):
 
         # Refresh pipeline from database to get updated data
         pipeline.refresh_from_db()
+        pipeline.parties_accepted = pipeline.parties.filter(accepted=True).count()
 
         # Check if all parties have accepted and trigger processing
-        if pipeline.all_parties_accepted and pipeline.status == "READY":
+        if pipeline.all_parties_accepted and not is_pipeline_task_running(pipeline.id):
             task = multi_party_matching_pipeline.delay(str(pipeline.id))
             pipeline.celery_task_id = task.id if task else None
             pipeline.save()
@@ -312,37 +322,28 @@ class MatchedDataViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         """Override list method to add custom logic"""
+
         queryset = self.filter_queryset(
             self.get_queryset().filter(left_party=request.user)
         )
-
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
     def retrieve(self, request, *args, **kwargs):
-        """
-        GET /pipelines/<pipeline_id>/me/matched-data/<matched_data_id>/
-        Retrieve a specific matched data record
-        """
         try:
+            logger.error("Retrieving matched data")
             instance = self.get_object()
 
             serializer = self.get_serializer(instance)
+
             return Response(serializer.data)
 
-        except MatchedData.DoesNotExist:
+        except Http404:
             raise NotFound("Matched data not found.")
+
         except Exception as e:
-            logger.error(f"Error retrieving matched data: {str(e)}")
-            return Response(
-                {"error": "Failed to retrieve matched data"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            logger.exception("Unhandled error during matched data retrieve")
+            return Response({"error": str(e)})
 
     def destroy(self, request, *args, **kwargs):
         """

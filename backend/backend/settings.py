@@ -249,8 +249,8 @@ SPARK_CONFIG = {
         "spark.sql.adaptive.skewJoin.enabled": "true",
         "spark.sql.adaptive.localShuffleReader.enabled": "true",
         # Memory management
-        "spark.executor.memory": "2g",
-        "spark.driver.memory": "2g",
+        "spark.executor.memory": "4g",
+        "spark.driver.memory": "4g",
         "spark.executor.memoryFraction": "0.8",
         "spark.sql.shuffle.partitions": "200",
         # Off-heap memory & serialization

@@ -28,12 +28,17 @@ COLUMNS = ["_c1", "_c2", "_c3", "_c4", "_c5"]
 
 @shared_task(bind=True, autoretry_for=(), retry_kwargs={"max_retries": 0})
 def multi_party_matching_pipeline(self, pipeline_id):
-    # TODO this will be updated for the actual mathcing alogirthm with spark
     pipeline = None
 
     try:
         with transaction.atomic():
             pipeline = MatchingPipeline.objects.select_for_update().get(id=pipeline_id)
+
+            if pipeline.status in ["RUNNING", "COMPLETED"]:
+                logger.info(
+                    f"Pipeline {pipeline_id} already {pipeline.status}, skipping."
+                )
+                return
 
             pipeline.status = "RUNNING"
             pipeline.execution_started_at = timezone.now()
@@ -60,19 +65,19 @@ def multi_party_matching_pipeline(self, pipeline_id):
             df_tmp = df_tmp.select(*pipeline.match_columns).toDF(*COLUMNS)
             df_tmp = df_tmp.withColumn("id", monotonically_increasing_id())
             df_tmp = df_tmp.withColumn("origin", lit(user_id))
-
             df_tmp = df_tmp.select("origin", "id", *COLUMNS)
-            df_tmp.cache()
 
-            df_tmp.write.mode("overwrite").parquet(
-                path=os.path.join(
-                    settings.MEDIA_ROOT,
-                    "pipelines",
-                    str(pipeline_id),
-                    "participants",
-                    f"party_{user_id}",
-                )
+            output_path = os.path.join(
+                settings.MEDIA_ROOT,
+                "pipelines",
+                str(pipeline_id),
+                "participants",
+                f"party_{user_id}",
             )
+
+            df_tmp.write.mode("overwrite").parquet(output_path)
+
+            df_tmp = spark.read.parquet(output_path)
             processed_dfs.append(df_tmp)
 
         # Union all datasets from different parties

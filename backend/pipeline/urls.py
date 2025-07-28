@@ -6,7 +6,6 @@ from .views import (
     MatchingPipelineDetailView,
     MatchingPipelineListCreateView,
     accept_pipeline,
-    get_task_status,
     get_user_pipelines,
 )
 
@@ -18,7 +17,6 @@ urlpatterns = [
     path("me/", get_user_pipelines, name="pipeline-user-list"),
     path("<uuid:pk>/", MatchingPipelineDetailView.as_view(), name="pipeline-detail"),
     path("<uuid:pipeline_id>/me/", accept_pipeline, name="pipeline-accept"),
-    # Correct nested route for matched-data create
     path(
         "<uuid:pipeline_id>/me/matched-data/",
         MatchedDataViewSet.as_view({"get": "list", "post": "create"}),
@@ -36,7 +34,6 @@ urlpatterns = [
         ),
         name="matched-data-detail",
     ),
-    path("task-status/<str:task_id>/", get_task_status, name="task-status"),
 ]
 
 urlpatterns += router.urls
